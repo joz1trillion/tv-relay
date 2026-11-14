@@ -47,7 +47,8 @@ final class UpdateUi {
             String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
             if (msg != null && msg.contains("DOWNGRADE")) {
                 msg = "Android won't put an older version over a newer one on this device. To go back, "
-                        + "uninstall TV Relay, then install the older APK from the GitHub releases page.";
+                        + "uninstall TV Relay, then install the older APK from the GitHub releases page.\n\n("
+                        + msg + ")";
             }
             message("Update failed", msg != null ? msg : "Android didn't say why.");
         }
@@ -172,7 +173,7 @@ final class UpdateUi {
             Updater.Release r = releases.get(i);
             int cmp = Updater.compare(r.version, current);
             items[i] = "v" + r.version + (r.prerelease ? "  pre-release" : "") + "   " + r.date
-                    + (cmp == 0 ? "   (installed)" : cmp < 0 ? "   (older)" : "");
+                    + (cmp == 0 ? "   (installed)" : "");
         }
         new AlertDialog.Builder(activity)
                 .setTitle("Install a specific version")
@@ -183,14 +184,10 @@ final class UpdateUi {
 
     private void confirm(Updater.Release r) {
         int cmp = Updater.compare(r.version, Updater.versionName(activity));
-        if (cmp < 0) {
-            // Tested: Android refuses the downgrade even for this debuggable app, after the download.
-            message("v" + r.version, "Android doesn't let an app install an older version of itself. To go back "
-                    + "to v" + r.version + ", uninstall TV Relay, then install that version from "
-                    + "github.com/joz1trillion/tv-relay/releases. Your settings would be reset.");
-            return;
-        }
-        String msg = cmp == 0 ? "Reinstall the version you already have?" : "Update to v" + r.version + "?";
+        // The TV (Android 12) refuses downgrades; some phones may allow them for this debuggable app.
+        String msg = cmp == 0 ? "Reinstall the version you already have?"
+                : cmp > 0 ? "Update to v" + r.version + "?"
+                : "Go back to v" + r.version + "? Android may refuse to install an older version.";
         new AlertDialog.Builder(activity)
                 .setTitle("v" + r.version)
                 .setMessage(msg)

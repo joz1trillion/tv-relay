@@ -104,6 +104,7 @@ public final class Updater {
         PackageInstaller.SessionParams params =
                 new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
         params.setAppPackageName(context.getPackageName());
+        if (compare(release.version, versionName(context)) < 0) requestDowngrade(params);
         if (release.size > 0) params.setSize(release.size);
         int id = installer.createSession(params);
         HttpURLConnection c = open(release.apkUrl);
@@ -135,9 +136,23 @@ public final class Updater {
         }
     }
 
-    /** Compares dotted version numbers: 0.10 is newer than 0.9. */
+    /**
+     * Android refuses older versions unless the installer asks for a downgrade, a flag apps can't
+     * normally set. Some devices allow it for debuggable apps like this one, so try it via reflection.
+     */
+    private static void requestDowngrade(PackageInstaller.SessionParams params) {
+        try {
+            java.lang.reflect.Field flags = PackageInstaller.SessionParams.class.getDeclaredField("installFlags");
+            flags.setAccessible(true);
+            flags.setInt(params, flags.getInt(params) | 0x00000080); // INSTALL_REQUEST_DOWNGRADE
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // the install then fails with a downgrade error, which the caller explains
+        }
+    }
+
+    /** Compares version numbers: 0.10 is newer than 0.9, and 0.4-1 is newer than 0.4. */
     static int compare(String a, String b) {
-        String[] x = a.split("\\."), y = b.split("\\.");
+        String[] x = a.split("[.-]"), y = b.split("[.-]");
         for (int i = 0; i < Math.max(x.length, y.length); i++) {
             int d = Integer.compare(part(x, i), part(y, i));
             if (d != 0) return d;
