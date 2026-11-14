@@ -34,7 +34,8 @@ final class Settings {
     boolean exclusive;
     boolean sendTwice;
     boolean keepScreenOn;
-    boolean pip = true;
+    boolean pip;           // mini window; off by default since v0.10
+    boolean keepTvStreaming; // phone side: Stop leaves the TV streaming, without asking
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
@@ -65,7 +66,8 @@ final class Settings {
         s.catchup = p.getBoolean("v2", false) ? p.getInt("catchup", CATCHUP_AGGRESSIVE) : CATCHUP_AGGRESSIVE;
         s.sendTwice = p.getInt("sendTwice", 0) == 1;
         s.keepScreenOn = p.getInt("keepScreenOn", 0) == 1;
-        s.pip = p.getInt("pip", 0) == 0; // stored as 0 = on
+        s.pip = p.getBoolean("miniWindow", false); // new key: the old "pip" defaulted to on
+        s.keepTvStreaming = p.getBoolean("keepTvStreaming", false);
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
@@ -92,7 +94,8 @@ final class Settings {
                 .putInt("exclusive", exclusive ? 1 : 0)
                 .putInt("sendTwice", sendTwice ? 1 : 0)
                 .putInt("keepScreenOn", keepScreenOn ? 1 : 0)
-                .putInt("pip", pip ? 0 : 1)
+                .putBoolean("miniWindow", pip)
+                .putBoolean("keepTvStreaming", keepTvStreaming)
                 .putInt("kodiMode", kodiMode)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)

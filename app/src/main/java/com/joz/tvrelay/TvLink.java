@@ -19,20 +19,26 @@ final class TvLink {
     static volatile boolean streaming;
     static volatile boolean kodiFound;
     static volatile boolean screenOpen;
+    static volatile boolean canPopUp;
     static volatile int versionCode;
     static volatile String address;
 
     private static volatile boolean running;
-    private static volatile boolean startRequested;
+    private static volatile byte command = Protocol.QUERY_STATUS; // sent with the next query
     private static Thread thread;
 
     static boolean found() {
         return lastReplyMs != 0 && SystemClock.elapsedRealtime() - lastReplyMs < FRESH_MS;
     }
 
-    /** Asks the TV to open its capture prompt; only works while TV Relay is on the TV's screen. */
+    /** Asks the TV to open its capture prompt; works while TV Relay is on the TV's screen, or in advanced mode. */
     static void requestStart() {
-        startRequested = true;
+        command = Protocol.QUERY_START;
+    }
+
+    /** Asks the TV to stop streaming; works with TV Relay in the background. */
+    static void requestStop() {
+        command = Protocol.QUERY_STOP;
     }
 
     static synchronized void start(String manualHost, String lastHost) {
@@ -61,12 +67,12 @@ final class TvLink {
             long nextQuery = 0;
             while (running) {
                 long now = SystemClock.elapsedRealtime();
-                if (now >= nextQuery || startRequested) {
+                byte cmd = command;
+                if (now >= nextQuery || cmd != Protocol.QUERY_STATUS) {
                     nextQuery = now + 1000;
-                    boolean start = startRequested;
-                    startRequested = false;
+                    command = Protocol.QUERY_STATUS;
                     qb.putLong(4, System.nanoTime());
-                    q[12] = start ? Protocol.QUERY_START : Protocol.QUERY_STATUS;
+                    q[12] = cmd;
                     // Where the TV is known to be, plus a broadcast in case it moved.
                     for (String host : new String[]{manualHost, found() ? address : lastHost}) {
                         if (host != null && !host.isEmpty()) send(socket, q, InetAddress.getByName(host));
@@ -84,6 +90,7 @@ final class TvLink {
                 kodiFound = r[13] == 1;
                 versionCode = rb.getShort(14) & 0xffff;
                 screenOpen = reply.getLength() >= Protocol.STATUS_BYTES && r[16] == 1;
+                canPopUp = reply.getLength() >= Protocol.STATUS_BYTES && r[17] == 1;
                 address = reply.getAddress().getHostAddress();
                 lastReplyMs = SystemClock.elapsedRealtime();
             }

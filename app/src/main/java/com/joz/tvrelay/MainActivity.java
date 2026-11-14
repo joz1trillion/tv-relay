@@ -31,6 +31,7 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -64,6 +65,7 @@ public class MainActivity extends Activity {
     private final List<TextView> kodiAdjustViews = new ArrayList<>();
     private LinearLayout kodiQuick;
     private TextView tvStateView;
+    private Switch keepTvSwitch;
     private LatencyGraph graph;
     private TextView pipView;
     private TextView[] tabs;
@@ -117,15 +119,14 @@ public class MainActivity extends Activity {
         showTab(0);
 
         findViewById(R.id.receive).setOnClickListener(v -> listen());
-        findViewById(R.id.stop).setOnClickListener(v -> stopService(new Intent(this, ReceiverService.class)));
+        findViewById(R.id.stop).setOnClickListener(v -> stopListening());
 
         buildSettings(findViewById(R.id.settingsList));
         buildKodi(findViewById(R.id.kodiList));
         buildConnectDirectly(findViewById(R.id.listenExtras));
         tvStateView = findViewById(R.id.tvState);
         kodiQuick = findViewById(R.id.kodiQuick);
-        header(kodiQuick, "Kodi lip sync");
-        buildKodiControls(kodiQuick);
+        buildKodiCompact(kodiQuick);
         kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
     }
 
@@ -172,6 +173,10 @@ public class MainActivity extends Activity {
         toggle(list, "Keep screen on", R.string.info_keep_screen_on, settings.keepScreenOn,
                 v -> settings.keepScreenOn = v, false);
         toggle(list, "Mini window", R.string.info_pip, settings.pip, v -> settings.pip = v, false);
+
+        header(list, "TV");
+        keepTvSwitch = toggle(list, "Keep TV streaming when I stop", R.string.info_keep_tv, settings.keepTvStreaming,
+                v -> settings.keepTvStreaming = v, false);
     }
 
     // ---- Listen tab extras ----
@@ -282,6 +287,74 @@ public class MainActivity extends Activity {
         scale.setGravity(Gravity.CENTER);
         scale.setAlpha(0.6f);
         showKodiAdjust();
+    }
+
+    /** Two-row version of the Kodi controls for the Listen tab: mode and value, then − slider +. */
+    private void buildKodiCompact(LinearLayout list) {
+        list.setPadding(0, dp(16), 0, 0);
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = new TextView(this);
+        title.setText("Kodi");
+        title.setTextSize(16);
+        title.setTypeface(Typeface.DEFAULT_BOLD);
+        top.addView(title);
+        Spinner mode = new Spinner(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Settings.KODI_LABELS);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mode.setAdapter(adapter);
+        mode.setSelection(settings.kodiMode, false);
+        mode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == settings.kodiMode) return;
+                settings.kodiMode = position;
+                ReceiverService.kodiMode = position;
+                settings.save(MainActivity.this);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+        top.addView(mode, new LinearLayout.LayoutParams(0, dp(44), 1));
+        kodiModeSpinners.add(mode);
+        TextView value = new TextView(this);
+        value.setTextSize(20);
+        value.setPadding(dp(8), 0, 0, 0);
+        value.setContentDescription("Adjustment; tap to reset");
+        value.setOnClickListener(v -> setKodiAdjust(0));
+        top.addView(value);
+        kodiAdjustViews.add(value);
+        list.addView(top);
+
+        LinearLayout bottom = new LinearLayout(this);
+        bottom.setGravity(Gravity.CENTER_VERTICAL);
+        bottom.addView(smallNudge("−5", -Settings.KODI_ADJUST_STEP_MS));
+        SeekBar slider = new SeekBar(this);
+        slider.setMax((Settings.KODI_ADJUST_MAX_MS - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS);
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
+                if (fromUser) setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS);
+            }
+            @Override public void onStartTrackingTouch(SeekBar bar) {}
+            @Override public void onStopTrackingTouch(SeekBar bar) {}
+        });
+        bottom.addView(slider, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        kodiSliders.add(slider);
+        bottom.addView(smallNudge("+5", Settings.KODI_ADJUST_STEP_MS));
+        list.addView(bottom);
+        showKodiAdjust();
+    }
+
+    private Button smallNudge(String text, int delta) {
+        Button b = new Button(this, null, android.R.attr.borderlessButtonStyle);
+        b.setText(text);
+        b.setAllCaps(false);
+        b.setMinWidth(dp(48));
+        b.setMinimumWidth(dp(48));
+        b.setOnClickListener(v -> setKodiAdjust(settings.kodiAdjustMs + delta));
+        return b;
     }
 
     /** The other tab's copy of the Kodi controls may be out of date. */
@@ -507,8 +580,8 @@ public class MainActivity extends Activity {
         return spinner;
     }
 
-    private void toggle(LinearLayout list, String title, int infoRes, boolean checked, BoolSetter setter,
-                        boolean restart) {
+    private Switch toggle(LinearLayout list, String title, int infoRes, boolean checked, BoolSetter setter,
+                          boolean restart) {
         LinearLayout row = label(list, title, infoRes);
         Switch sw = new Switch(this);
         sw.setChecked(checked);
@@ -519,6 +592,7 @@ public class MainActivity extends Activity {
             if (restart) restartReceiverIfRunning();
         });
         row.addView(sw);
+        return sw;
     }
 
     private TextView text(LinearLayout list, String s, int sp) {
@@ -594,10 +668,42 @@ public class MainActivity extends Activity {
                 .putExtra(ReceiverService.EXTRA_HOST, settings.host));
     }
 
+    /** Stop listening; if the TV is still streaming, offer to stop it too (unless told to keep it). */
+    private void stopListening() {
+        stopService(new Intent(this, ReceiverService.class));
+        if (!TvLink.found() || !TvLink.streaming || settings.keepTvStreaming) return;
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(4), dp(24), 0);
+        CheckBox keep = new CheckBox(this);
+        keep.setText("Always keep the TV streaming, don't ask again");
+        box.addView(keep);
+        TextView note = text(box, "You can change this later in Settings.", 13);
+        note.setAlpha(0.7f);
+        new AlertDialog.Builder(this)
+                .setTitle("Stop the TV too?")
+                .setMessage("The TV is still capturing audio. Stopping it here means you'll need to "
+                        + "allow the recording prompt on the TV again next time.")
+                .setView(box)
+                .setPositiveButton("Stop TV", (d, w) -> {
+                    rememberKeep(keep.isChecked());
+                    TvLink.requestStop();
+                })
+                .setNegativeButton("Keep it streaming", (d, w) -> rememberKeep(keep.isChecked()))
+                .show();
+    }
+
+    private void rememberKeep(boolean keep) {
+        if (!keep) return;
+        settings.keepTvStreaming = true;
+        settings.save(this);
+        if (keepTvSwitch != null) keepTvSwitch.setChecked(true);
+    }
+
     /** Listen also asks the TV to start streaming, if it's found but not streaming yet. */
     private void listen() {
         if (TvLink.found() && !TvLink.streaming) {
-            if (TvLink.screenOpen) {
+            if (TvLink.screenOpen || TvLink.canPopUp) {
                 TvLink.requestStart();
                 Toast.makeText(this, "Press Allow on the TV", Toast.LENGTH_LONG).show();
             } else {

@@ -97,19 +97,40 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- For the phone's Connect directly; same look as the version label opposite. -->
-    <TextView
-        android:id="@+id/ip"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="8dp"
-        android:paddingLeft="12dp"
-        android:paddingTop="6dp"
-        android:paddingRight="12dp"
-        android:paddingBottom="6dp"
-        android:textColor="#8E8E96"
-        android:textSize="16sp" />
+        android:orientation="horizontal">
+
+        <!-- For the phone's Connect directly; same look as the version label opposite. -->
+        <TextView
+            android:id="@+id/ip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="12dp"
+            android:paddingTop="6dp"
+            android:paddingRight="12dp"
+            android:paddingBottom="6dp"
+            android:textColor="#8E8E96"
+            android:textSize="16sp" />
+
+        <!-- Focusable: OK explains advanced mode and opens its setting. -->
+        <TextView
+            android:id="@+id/advanced"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="8dp"
+            android:background="@drawable/tv_chip"
+            android:focusable="true"
+            android:paddingLeft="12dp"
+            android:paddingTop="6dp"
+            android:paddingRight="12dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/tv_chip_text"
+            android:textSize="16sp" />
+    </LinearLayout>
 
     <!-- Version, with a dot when an update is out. Focusable: OK opens the update dialog. -->
     <TextView

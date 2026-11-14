@@ -13,9 +13,11 @@ package com.joz.tvrelay;
  *              TV echoes the ping so the phone can measure RTT.
  *
  * Link (UDP LINK_PORT), answered by the TV whenever TV Relay has been opened, streaming or not:
- *   query:     [int QUERY][long pingNanos][byte command][3 bytes 0]   command: status or start
+ *   query:     [int QUERY][long pingNanos][byte command][3 bytes 0]   command: status, start or stop
  *   status:    [int STATUS][long pingNanos][byte streaming][byte kodiFound][short versionCode]
- *              [byte screenOpen][3 bytes 0]   screenOpen: TV Relay is on the TV's screen, so start can work
+ *              [byte screenOpen][byte canPopUp][2 bytes 0]
+ *              screenOpen: TV Relay is on the TV's screen, so start can work.
+ *              canPopUp: advanced mode, TV Relay may open its screen over other apps, so start always works.
  */
 final class Protocol {
     static final int PORT = 48100;
@@ -39,6 +41,7 @@ final class Protocol {
     static final int STATUS_BYTES = 20;
     static final byte QUERY_STATUS = 0;
     static final byte QUERY_START = 1;
+    static final byte QUERY_STOP = 2;
     static final int FLAG_SEND_TWICE = 1;
     // Wi-Fi loss comes in bursts, so the copy goes out 10 ms after the original, not right behind it.
     static final int RESEND_DELAY_CHUNKS = 2;

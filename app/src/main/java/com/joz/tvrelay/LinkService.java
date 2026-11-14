@@ -31,6 +31,7 @@ public class LinkService extends Service {
     private DatagramSocket socket;
     private Thread linkThread;
     private Thread kodiThread;
+    private long lastStartMs;  // link thread only
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -81,11 +82,15 @@ public class LinkService extends Service {
             }
             if (p.getLength() < Protocol.QUERY_BYTES || in.getInt(0) != Protocol.MAGIC_QUERY) continue;
             if (buf[12] == Protocol.QUERY_START && !SenderService.running) askToStart();
+            if (buf[12] == Protocol.QUERY_STOP && SenderService.running) {
+                stopService(new Intent(this, SenderService.class)); // fine from the background
+            }
             out.putLong(4, in.getLong(4));
             reply[12] = (byte) (SenderService.running ? 1 : 0);
             reply[13] = (byte) (kodiFound ? 1 : 0);
             out.putShort(14, (short) versionCode);
             reply[16] = (byte) (TvActivity.visible ? 1 : 0);
+            reply[17] = (byte) (canPopUp() ? 1 : 0);
             try {
                 socket.send(new DatagramPacket(reply, reply.length, p.getSocketAddress()));
             } catch (IOException ignored) {
@@ -99,10 +104,22 @@ public class LinkService extends Service {
      * (tested), so otherwise the phone tells the user to open TV Relay on the TV.
      */
     private void askToStart() {
-        if (!TvActivity.visible) return;
+        long now = android.os.SystemClock.elapsedRealtime();
+        if (now - lastStartMs < 5000) return; // the phone sends each request to more than one address
+        if (!TvActivity.visible && !canPopUp()) return;
+        lastStartMs = now;
         startActivity(new Intent(this, TvActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                .putExtra(TvActivity.EXTRA_START, true));
+                .putExtra(TvActivity.EXTRA_START, true)
+                .putExtra(TvActivity.EXTRA_FROM_BACKGROUND, !TvActivity.visible));
+    }
+
+    /**
+     * Advanced mode: with "display over other apps" granted (adb on most TVs), Android lets TV Relay
+     * open its screen from the background, so the phone can start streaming any time.
+     */
+    private boolean canPopUp() {
+        return android.provider.Settings.canDrawOverlays(this);
     }
 
     /** Every few seconds: is something answering on Kodi's port, and is it Kodi? */

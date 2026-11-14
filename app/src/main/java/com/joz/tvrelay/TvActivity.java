@@ -3,9 +3,11 @@ package com.joz.tvrelay;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
@@ -33,6 +35,8 @@ public class TvActivity extends Activity {
     private static final int REQ_CAPTURE = 2;
     static final String EXTRA_START = "start";  // the phone asked to start streaming
     static volatile boolean visible;            // on screen, so the phone's start request can work
+    static final String EXTRA_FROM_BACKGROUND = "fromBackground"; // popped up over another app
+    private boolean returnWhenStarted;          // go back to that app once capture is allowed
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Button toggle;
@@ -41,6 +45,7 @@ public class TvActivity extends Activity {
     private TextView hint;
     private TextView ip;
     private TextView kodi;
+    private TextView advanced;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -69,6 +74,8 @@ public class TvActivity extends Activity {
         });
         ip = findViewById(R.id.ip);
         kodi = findViewById(R.id.kodi);
+        advanced = findViewById(R.id.advanced);
+        advanced.setOnClickListener(v -> showAdvanced());
         toggle.setOnFocusChangeListener((v, focused) ->
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
@@ -87,6 +94,7 @@ public class TvActivity extends Activity {
     private void handleStart(Intent intent) {
         if (intent != null && intent.getBooleanExtra(EXTRA_START, false) && !SenderService.running) {
             intent.removeExtra(EXTRA_START);
+            returnWhenStarted = intent.getBooleanExtra(EXTRA_FROM_BACKGROUND, false);
             requestCapture();
         }
     }
@@ -141,6 +149,7 @@ public class TvActivity extends Activity {
         }
         String address = ipAddress();
         ip.setText(address != null ? "IP address " + address : "No network");
+        advanced.setText("Advanced mode: " + (android.provider.Settings.canDrawOverlays(this) ? "on" : "off"));
         boolean found = LinkService.kodiFound;
         SpannableStringBuilder k = new SpannableStringBuilder("● ");
         k.setSpan(new ForegroundColorSpan(found ? Color.rgb(0x34, 0xC7, 0x59) : Color.rgb(0xFF, 0x45, 0x3A)),
@@ -190,6 +199,31 @@ public class TvActivity extends Activity {
         startForegroundService(new Intent(this, SenderService.class)
                 .putExtra(SenderService.EXTRA_RESULT_CODE, resultCode)
                 .putExtra(SenderService.EXTRA_RESULT_DATA, data));
+        if (returnWhenStarted) moveTaskToBack(true); // back to the show we interrupted
+        returnWhenStarted = false;
+    }
+
+    /** Advanced mode is Android's "display over other apps" permission, which this TV lets you grant in its settings. */
+    private void showAdvanced() {
+        boolean on = android.provider.Settings.canDrawOverlays(this);
+        new AlertDialog.Builder(this)
+                .setTitle("Advanced mode: " + (on ? "on" : "off"))
+                .setMessage("Lets the phone start streaming even while you're in another app: tapping Listen "
+                        + "pops the TV's recording prompt up over your show, and you're back in the show after "
+                        + "pressing Start now.\n\nIt uses Android's \"Display over other apps\" permission. "
+                        + (on ? "To turn it off, find TV Relay on the next screen and switch it off."
+                        : "On the next screen, find TV Relay and switch it on, then press Back."))
+                .setPositiveButton("Open setting", (d, w) -> {
+                    try {
+                        startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName())));
+                    } catch (Exception e) {
+                        new AlertDialog.Builder(this).setMessage("Look in Settings > Apps > Special app access > "
+                                + "Display over other apps.").setPositiveButton("OK", null).show();
+                    }
+                })
+                .setNegativeButton("Close", null)
+                .show();
     }
 
     /** The TV's IPv4 address on the active network (Wi-Fi or Ethernet), or null. */
