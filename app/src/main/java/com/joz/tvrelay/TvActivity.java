@@ -3,9 +3,14 @@ package com.joz.tvrelay;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -16,6 +21,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +37,29 @@ public class TvActivity extends Activity {
     private TextView detail;
     private TextView kodiStatus;
     private TextView hint;
+    private Button update;
+
+    /** Newest release on GitHub when it's newer than this install. */
+    private Updater.Release available;
+    private boolean updating;
+
+    private final BroadcastReceiver installStatus = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+            if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+                if (confirm != null) startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            }
+            updating = false;
+            renderUpdate();
+            if (status != PackageInstaller.STATUS_SUCCESS && status != PackageInstaller.STATUS_FAILURE_ABORTED) {
+                String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+                showMessage("Update failed", msg != null ? msg : "Android didn't say why.");
+            }
+        }
+    };
 
     private final Runnable refresh = new Runnable() {
         @Override
@@ -49,6 +78,8 @@ public class TvActivity extends Activity {
         detail = findViewById(R.id.detail);
         kodiStatus = findViewById(R.id.kodiStatus);
         hint = findViewById(R.id.hint);
+        update = findViewById(R.id.update);
+        ((TextView) findViewById(R.id.version)).setText("v" + Updater.versionName(this));
 
         toggle.setOnClickListener(v -> {
             if (SenderService.running) {
@@ -59,13 +90,25 @@ public class TvActivity extends Activity {
         });
         findViewById(R.id.back).setOnClickListener(v -> moveTaskToBack(true));
         findViewById(R.id.kodi).setOnClickListener(v -> showKodiLogin());
+        update.setOnClickListener(v -> onUpdatePressed());
 
-        for (int id : new int[]{R.id.toggle, R.id.back, R.id.kodi}) {
+        for (int id : new int[]{R.id.toggle, R.id.back, R.id.kodi, R.id.update}) {
             findViewById(id).setOnFocusChangeListener((v, focused) ->
                     v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f)
                             .setDuration(120).start());
         }
         toggle.requestFocus();
+
+        registerReceiver(installStatus, new IntentFilter(Updater.ACTION_INSTALL_STATUS),
+                Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
+        renderUpdate();
+        checkForUpdate(false);
+    }
+
+    @Override
+    protected void onDestroy() {
+        unregisterReceiver(installStatus);
+        super.onDestroy();
     }
 
     @Override
@@ -103,6 +146,93 @@ public class TvActivity extends Activity {
         hint.setText(on
                 ? "Streaming keeps going in the background. Press Back to my show (or Home) to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
+    }
+
+    private void renderUpdate() {
+        if (!updating) {
+            update.setText(available != null ? "Get v" + available.version : "Updates");
+        }
+    }
+
+    private void onUpdatePressed() {
+        if (updating) return;
+        if (available == null) {
+            checkForUpdate(true);
+        } else if (!getPackageManager().canRequestPackageInstalls()) {
+            askInstallPermission();
+        } else {
+            install(available);
+        }
+    }
+
+    /** Quietly on launch; with feedback when the button was pressed. */
+    private void checkForUpdate(boolean userAsked) {
+        updating = true;
+        if (userAsked) update.setText("Checking…");
+        new Thread(() -> {
+            Updater.Release release = null;
+            String error = null;
+            try {
+                release = Updater.checkForUpdate(this);
+            } catch (Exception e) {
+                error = e.getMessage();
+            }
+            Updater.Release found = release;
+            String failure = error;
+            runOnUiThread(() -> {
+                updating = false;
+                available = found;
+                renderUpdate();
+                if (!userAsked || isFinishing()) return;
+                if (failure != null) {
+                    showMessage("Couldn't check for updates", failure);
+                } else if (found == null) {
+                    Toast.makeText(this, "You're on the latest version (v" + Updater.versionName(this) + ")",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
+        }, "update-check").start();
+    }
+
+    private void askInstallPermission() {
+        new AlertDialog.Builder(this)
+                .setTitle("Allow updates")
+                .setMessage("Android needs your OK, once, for TV Relay to install its own updates. "
+                        + "On the next screen, turn on TV Relay, then come back and press Get again.")
+                .setPositiveButton("Open settings", (d, w) -> {
+                    try {
+                        startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                Uri.parse("package:" + getPackageName())));
+                    } catch (Exception e) {
+                        showMessage("Allow updates", "This TV has no shortcut to that setting. Look in "
+                                + "Settings > Apps > Special app access > Install unknown apps, and turn on TV Relay.");
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void install(Updater.Release release) {
+        updating = true;
+        update.setText("Updating…");
+        new Thread(() -> {
+            try {
+                Updater.downloadAndInstall(this, release, percent ->
+                        runOnUiThread(() -> update.setText(percent + "%")));
+                runOnUiThread(() -> update.setText("Installing…"));
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    updating = false;
+                    renderUpdate();
+                    showMessage("Update failed", String.valueOf(e.getMessage()));
+                });
+            }
+        }, "update-install").start();
+    }
+
+    private void showMessage(String title, String message) {
+        if (isFinishing()) return;
+        new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("OK", null).show();
     }
 
     private void requestCapture() {

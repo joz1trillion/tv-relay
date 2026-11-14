@@ -81,6 +81,7 @@ public class MainActivity extends Activity {
             return;
         }
         setContentView(R.layout.activity_main);
+        ((TextView) findViewById(R.id.version)).setText("v" + Updater.versionName(this));
         settings = Settings.load(this);
         statusView = findViewById(R.id.status);
         graph = findViewById(R.id.graph);

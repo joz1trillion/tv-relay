@@ -21,7 +21,7 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 
 ## Install
 
-1. Install the same APK on the TV and the phone (sideload, or `adb install tv-relay.apk`).
+1. Install the same APK on the TV and the phone (sideload, or `adb install tv-relay.apk`). After that, the phone can update through [Obtainium](https://github.com/ImranR98/Obtainium) (turn on prereleases), and the TV with its own **Updates** button.
 2. **TV:** open TV Relay, press **Start streaming**, and allow the recording prompt. Then press **Back to my show**.
 3. **Phone:** open TV Relay and tap **Listen**. It finds the TV automatically; if not, enter the TV's IP under Settings → Connection.
 
