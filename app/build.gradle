@@ -1,0 +1,28 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.joz.tvrelay'
+    compileSdk 34
+    ndkVersion '29.0.14206865'
+
+    defaultConfig {
+        applicationId 'com.joz.tvrelay'
+        minSdk 29 // AudioPlaybackCapture needs Android 10
+        targetSdk 34
+        versionCode 1
+        versionName '0.1'
+    }
+
+    externalNativeBuild {
+        ndkBuild {
+            path 'src/main/jni/Android.mk'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

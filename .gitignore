@@ -1,0 +1,17 @@
+# Build output
+build/
+app/build/
+app/.cxx/
+.gradle/
+*.apk
+!releases/*.apk
+
+# Machine-specific
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# Signing keys never go in the repo
+*.jks
+*.keystore
