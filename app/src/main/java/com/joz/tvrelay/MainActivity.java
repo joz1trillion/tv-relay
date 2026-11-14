@@ -18,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextWatcher;
@@ -51,6 +52,8 @@ public class MainActivity extends Activity {
     private TextView kodiStatusView;
     private TextView kodiStatusDetail;
     private GradientDrawable kodiStatusCard;
+    private String kodiTestResult;   // last Test connection answer, shown while not listening
+    private boolean kodiTestOk;
     private TextView kodiAdjustView;
     private SeekBar kodiSlider;
     private LatencyGraph graph;
@@ -208,6 +211,7 @@ public class MainActivity extends Activity {
         kodiStatusDetail.setAlpha(0.8f);
 
         buildKodiSetup(list);
+        buildKodiLogin(list);
 
         choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
             settings.kodiMode = v;
@@ -270,8 +274,8 @@ public class MainActivity extends Activity {
         TextView steps = text(body, "1. On the TV, install Kodi (version 21 or newer) from the Play Store.\n"
                 + "2. In Kodi: Settings → Services → Control → turn on \"Allow remote control via HTTP\" "
                 + "and set a password.\n"
-                + "3. In TV Relay on the TV: Connect to Kodi → enter that password. It checks the connection for you.\n"
-                + "4. Here: tap Listen, set Mode to Automatic, and play something in Kodi.", 14);
+                + "3. Here: enter that password under Kodi login and tap Test connection.\n"
+                + "4. Tap Listen, set Mode to Automatic, and play something in Kodi.", 14);
         steps.setLineSpacing(dp(4), 1f);
         TextView link = text(body, "Full guide, including Plex in Kodi →", 14);
         link.setTextColor(ACCENT);
@@ -285,19 +289,93 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** "● Kodi connected" in green, orange when something's wrong, grey when unknown. */
+    /** Kodi's HTTP login, typed here rather than with the TV remote, and a button to try it. */
+    private void buildKodiLogin(LinearLayout list) {
+        header(list, "Kodi login");
+        loginField(list, "Port", String.valueOf(settings.kodiPort), InputType.TYPE_CLASS_NUMBER, v -> {
+            try {
+                settings.kodiPort = Integer.parseInt(v);
+            } catch (NumberFormatException e) {
+                settings.kodiPort = 8080;
+            }
+        });
+        loginField(list, "Username", settings.kodiUser, InputType.TYPE_CLASS_TEXT, v -> settings.kodiUser = v);
+        loginField(list, "Password", settings.kodiPass,
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD, v -> settings.kodiPass = v);
+        Button test = new Button(this);
+        test.setText("Test connection");
+        test.setAllCaps(false);
+        test.setOnClickListener(v -> testKodi(test));
+        list.addView(test);
+    }
+
+    private interface TextSetter {
+        void set(String value);
+    }
+
+    private void loginField(LinearLayout list, String title, String value, int inputType, TextSetter setter) {
+        TextView l = text(list, title, 14);
+        l.setPadding(0, dp(8), 0, 0);
+        EditText e = new EditText(this);
+        e.setSingleLine(true); // before setInputType: it would replace the password masking
+        e.setInputType(inputType);
+        e.setText(value);
+        e.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                String v = s.toString();
+                setter.set(inputType == InputType.TYPE_CLASS_TEXT ? v.trim() : v);
+                settings.save(MainActivity.this); // the receiver's Kodi sync rereads it each second
+            }
+        });
+        list.addView(e);
+    }
+
+    private void testKodi(Button button) {
+        String host = ReceiverService.tvHost;
+        if (host == null) host = !settings.host.isEmpty() ? settings.host : Settings.load(this).lastTvHost;
+        if (host.isEmpty()) {
+            kodiTestOk = false;
+            kodiTestResult = "The phone doesn't know where the TV is yet. Tap Listen once, or enter the TV's IP "
+                    + "under Connect directly (Show IP on the TV tells you).";
+            showKodiStatus();
+            return;
+        }
+        button.setEnabled(false);
+        button.setText("Testing…");
+        String tv = host;
+        new Thread(() -> {
+            String result = KodiSync.testLogin(this, tv);
+            runOnUiThread(() -> {
+                button.setEnabled(true);
+                button.setText("Test connection");
+                kodiTestOk = result.startsWith("Connected");
+                kodiTestResult = result;
+                showKodiStatus();
+            });
+        }, "kodi-test").start();
+    }
+
+    /**
+     * "● Kodi connected" in green, orange when something's wrong, grey when unknown. Live state
+     * while listening and the TV is found; otherwise the last Test connection result.
+     */
     private void showKodiStatus() {
-        int state = ReceiverService.running ? ReceiverService.kodiState : -1;
-        boolean connected = state == Protocol.KODI_STATE_IDLE || state == Protocol.KODI_STATE_APPLIED
-                || state == Protocol.KODI_STATE_READY;
-        boolean problem = state == Protocol.KODI_STATE_UNREACHABLE || state == Protocol.KODI_STATE_AUTH
-                || state == Protocol.KODI_STATE_MISSING;
+        int state = ReceiverService.running ? KodiSync.state : Protocol.KODI_STATE_OFF;
+        boolean live = state != Protocol.KODI_STATE_OFF;
+        boolean connected = live ? state == Protocol.KODI_STATE_IDLE || state == Protocol.KODI_STATE_APPLIED
+                || state == Protocol.KODI_STATE_READY : kodiTestResult != null && kodiTestOk;
+        boolean problem = live ? state == Protocol.KODI_STATE_UNREACHABLE || state == Protocol.KODI_STATE_AUTH
+                : kodiTestResult != null && !kodiTestOk;
         int color = connected ? GOOD : problem ? WARN : Color.GRAY;
         SpannableStringBuilder sb = new SpannableStringBuilder("● ");
         sb.setSpan(new ForegroundColorSpan(color), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sb.append(connected ? "Kodi connected" : problem ? "Kodi not connected" : "Kodi: not checked yet");
         kodiStatusView.setText(sb);
-        kodiStatusDetail.setText(describeKodi());
+        kodiStatusDetail.setText(live ? describeKodi() : kodiTestResult != null ? kodiTestResult
+                : "Tap Test connection below, or Listen.");
         kodiStatusCard.setColor(Color.argb(0x26, Color.red(color), Color.green(color), Color.blue(color)));
     }
 
@@ -511,14 +589,13 @@ public class MainActivity extends Activity {
 
     private static String describeKodi() {
         if (!ReceiverService.running) return "Tap Listen to check the connection to Kodi";
-        switch (ReceiverService.kodiState) {
+        switch (KodiSync.state) {
             case Protocol.KODI_STATE_READY: return "Lip sync is off: pick a mode below";
             case Protocol.KODI_STATE_IDLE: return "Nothing playing in Kodi";
             case Protocol.KODI_STATE_APPLIED:
-                return "Kodi audio delay " + ReceiverService.kodiAppliedMs + " ms";
+                return "Kodi audio delay " + KodiSync.appliedMs + " ms";
             case Protocol.KODI_STATE_UNREACHABLE: return "Can't reach Kodi: is it open, with HTTP remote control on?";
-            case Protocol.KODI_STATE_AUTH: return "Kodi login is wrong: fix it under Connect to Kodi on the TV";
-            case Protocol.KODI_STATE_MISSING: return "Kodi isn't installed on the TV";
+            case Protocol.KODI_STATE_AUTH: return "Kodi says the username or password is wrong";
             default: return "Waiting for the TV…";
         }
     }

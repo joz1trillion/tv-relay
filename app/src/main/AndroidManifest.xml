@@ -19,11 +19,6 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
-    <!-- Lets the TV tell "Kodi isn't installed" apart from "Kodi isn't open". -->
-    <queries>
-        <package android:name="org.xbmc.kodi" />
-    </queries>
-
     <application
         android:label="@string/app_name"
         android:icon="@drawable/ic_launcher"

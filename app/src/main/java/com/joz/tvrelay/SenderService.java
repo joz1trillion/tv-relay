@@ -45,7 +45,6 @@ public class SenderService extends Service {
     private final byte[] packet = new byte[Protocol.MAX_PACKET];
     private volatile StreamConfig requested = StreamConfig.DEFAULT;
     private volatile boolean sendTwice;
-    private KodiSync kodi;
     private StreamConfig active; // capture thread only
     private int tick;            // capture thread only: current 5 ms chunk
     private final byte[][] sent = new byte[8][Protocol.MAX_PACKET]; // recent packets, for resending
@@ -120,9 +119,6 @@ public class SenderService extends Service {
         socket.setTrafficClass(Protocol.TRAFFIC_CLASS_VOICE);
         socket.setSendBufferSize(256 * 1024);
 
-        kodi = new KodiSync(this);
-        kodi.start();
-
         acquireLocks();
         running = true;
         packetsSent = 0;
@@ -158,11 +154,7 @@ public class SenderService extends Service {
                 requested = new StreamConfig(codec, channels, kbps); // most recent phone wins
             }
             sendTwice = (buf[16] & Protocol.FLAG_SEND_TWICE) != 0;
-            kodi.update(buf[17], in.getShort(18), in.getShort(20) & 0xffff,
-                    (buf[16] & Protocol.FLAG_KODI_FLIP) != 0);
             out.putLong(4, in.getLong(8));
-            out.putShort(12, (short) KodiSync.appliedMs);
-            pong[14] = (byte) KodiSync.state;
             try {
                 socket.send(new DatagramPacket(pong, pong.length, p.getSocketAddress()));
             } catch (IOException ignored) {
@@ -321,7 +313,6 @@ public class SenderService extends Service {
             }
         }
         if (socket != null) socket.close();
-        if (kodi != null) kodi.stop();
         join(captureThread);
         join(controlThread);
         if (record != null) record.release();

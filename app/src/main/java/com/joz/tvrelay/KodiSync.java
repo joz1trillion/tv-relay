@@ -17,9 +17,9 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Runs on the TV next to the sender. Tells Kodi (on the same TV) to play its audio early by the
- * relay's delay, via JSON-RPC Player.SetAudioDelay (Kodi 21+), so the sound on the phone lines up
- * with the picture. Mode, adjustment and the measured delay come from the phone each second.
+ * Runs on the phone while listening. Tells Kodi on the TV, over Kodi's HTTP remote control, to play
+ * its audio early by the relay's delay via JSON-RPC Player.SetAudioDelay (Kodi 21+), so the sound on
+ * the phone lines up with the picture. The receiver feeds in mode, adjustment and measured delay.
  */
 final class KodiSync {
     private static final String TAG = "TvRelayKodi";
@@ -29,9 +29,9 @@ final class KodiSync {
     static volatile String status = "Kodi sync off";
     static volatile int state = Protocol.KODI_STATE_OFF;
     static volatile int appliedMs;
-    static volatile boolean syncing;  // the phone has a lip sync mode on
 
     private final Context context;
+    private volatile String host;  // the TV's IP, once the receiver knows it
     private int port;
     private String auth;
     private volatile int mode;
@@ -50,12 +50,16 @@ final class KodiSync {
         this.context = context.getApplicationContext();
     }
 
-    /** Re-read each tick, so saving the Kodi login on the TV applies without restarting. */
+    /** Re-read each tick, so editing the Kodi login applies without restarting. */
     private void loadLogin() {
         Settings s = Settings.load(context);
         port = s.kodiPort;
         auth = s.kodiUser.isEmpty() ? null : "Basic " + Base64.encodeToString(
                 (s.kodiUser + ":" + s.kodiPass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+    }
+
+    void setHost(String host) {
+        this.host = host;
     }
 
     void update(int mode, int adjustMs, int latencyMs, boolean flip) {
@@ -86,9 +90,7 @@ final class KodiSync {
             } catch (Exception e) {
                 Log.d(TAG, "kodi unreachable", e);
                 lastItem = null;
-                setState(Protocol.KODI_STATE_UNREACHABLE, syncing
-                        ? "Kodi: not reachable (turn on Settings > Services > Control > Allow remote control via HTTP)"
-                        : "Kodi isn't open");
+                setState(Protocol.KODI_STATE_UNREACHABLE, "Kodi: not reachable");
             }
             try {
                 Thread.sleep(1000);
@@ -104,12 +106,13 @@ final class KodiSync {
         loadLogin();
         boolean phoneActive = SystemClock.elapsedRealtime() - lastUpdateMs < 5000;
         int m = phoneActive ? mode : Protocol.KODI_OFF;
-        syncing = m != Protocol.KODI_OFF;
+        if (host == null) {
+            setState(Protocol.KODI_STATE_OFF, "Waiting for the TV");
+            return;
+        }
         if (m == Protocol.KODI_OFF) {
             resetIfChanged();
-            if (phoneActive && !installed(context)) {
-                setState(Protocol.KODI_STATE_MISSING, "Kodi isn't installed");
-            } else if (phoneActive) {
+            if (phoneActive) {
                 kodiVersion(); // still check the login, so the phone can show it's connected
                 setState(Protocol.KODI_STATE_READY, "Kodi: connected, lip sync off");
             } else {
@@ -159,13 +162,11 @@ final class KodiSync {
         status = text;
     }
 
-    /** Checks the saved login against Kodi right away, for the TV's Kodi login dialog. Blocking. */
-    static String testLogin(Context context) {
+    /** Checks the saved login against Kodi on {@code host} right away, for the Test button. Blocking. */
+    static String testLogin(Context context, String host) {
         KodiSync k = new KodiSync(context);
         k.loadLogin();
-        if (!installed(context)) {
-            return "Kodi isn't installed on this TV. Get it from the Play Store (Kodi 21 or newer).";
-        }
+        k.host = host;
         try {
             int[] v = k.kodiVersion();
             String name = "Kodi " + v[0] + "." + v[1];
@@ -174,17 +175,8 @@ final class KodiSync {
         } catch (AuthException e) {
             return "Kodi says the username or password is wrong.";
         } catch (Exception e) {
-            return "Couldn't reach Kodi on port " + k.port + ". Open Kodi (it can stay in the background) and "
-                    + "check Settings > Services > Control > Allow remote control via HTTP is on.";
-        }
-    }
-
-    private static boolean installed(Context context) {
-        try {
-            context.getPackageManager().getPackageInfo("org.xbmc.kodi", 0);
-            return true;
-        } catch (Exception e) {
-            return false;
+            return "Couldn't reach Kodi at " + host + ":" + k.port + ". Check Kodi is open on the TV (it can stay "
+                    + "in the background) and Settings > Services > Control > Allow remote control via HTTP is on.";
         }
     }
 
@@ -219,7 +211,7 @@ final class KodiSync {
     private JSONObject rpc(String method, JSONObject params) throws Exception {
         JSONObject req = new JSONObject().put("jsonrpc", "2.0").put("id", 1)
                 .put("method", method).put("params", params);
-        HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port + "/jsonrpc").openConnection();
+        HttpURLConnection c = (HttpURLConnection) new URL("http://" + host + ":" + port + "/jsonrpc").openConnection();
         try {
             c.setConnectTimeout(1000);
             c.setReadTimeout(2000);

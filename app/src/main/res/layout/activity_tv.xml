@@ -48,9 +48,9 @@
                 android:textStyle="bold" />
 
             <Button
-                android:id="@+id/kodi"
+                android:id="@+id/showIp"
                 style="@style/TvButton"
-                android:text="Connect to Kodi" />
+                android:text="Show IP address" />
         </LinearLayout>
 
         <LinearLayout
@@ -72,14 +72,6 @@
 
             <TextView
                 android:id="@+id/detail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:textColor="#C8C8D0"
-                android:textSize="22sp" />
-
-            <TextView
-                android:id="@+id/kodiStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Kodi's JSON-RPC server on the same TV is plain HTTP. -->
+<!-- Kodi's JSON-RPC server is plain HTTP, and the phone reaches it at the TV's LAN address,
+     which can't be listed in advance. Everything else the app fetches (GitHub) is HTTPS. -->
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <domain includeSubdomains="false">localhost</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

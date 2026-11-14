@@ -6,10 +6,11 @@ package com.joz.tvrelay;
  *              seq = index of the payload's first 5 ms chunk, so PCM and Opus share one timeline.
  *              PCM payload: one 5 ms chunk of PCM16 LE. Opus payload: one Opus packet.
  *   subscribe: [int SUBSCRIBE][byte codec][byte channels][short kbps][long pingNanos][byte flags]
- *              [byte kodiMode][short kodiAdjustMs][short measuredLatencyMs][short 0]
- *              sent by the phone 1x/s; doubles as keepalive, picks the stream format and drives Kodi sync.
- *   pong:      [int PONG][long pingNanos][short kodiDelayMs][byte kodiState][byte 0]
- *              TV echoes the ping so the phone can measure RTT, and reports what it did to Kodi.
+ *              [7 bytes 0]
+ *              sent by the phone 1x/s; doubles as keepalive and picks the stream format. The zero
+ *              bytes once carried Kodi sync settings: TVs before v0.7 drove Kodi, and zero keeps it off.
+ *   pong:      [int PONG][long pingNanos][int 0]
+ *              TV echoes the ping so the phone can measure RTT.
  */
 final class Protocol {
     static final int PORT = 48100;
@@ -27,7 +28,6 @@ final class Protocol {
     static final int MAGIC_PONG = 0x54525032;      // "TRP2"
     static final int SUBSCRIBE_BYTES = 24;
     static final int FLAG_SEND_TWICE = 1;
-    static final int FLAG_KODI_FLIP = 2;
     // Wi-Fi loss comes in bursts, so the copy goes out 10 ms after the original, not right behind it.
     static final int RESEND_DELAY_CHUNKS = 2;
     static final int PONG_BYTES = 16;
@@ -41,7 +41,6 @@ final class Protocol {
     static final int KODI_STATE_UNREACHABLE = 3;
     static final int KODI_STATE_AUTH = 4;
     static final int KODI_STATE_READY = 5;       // login works, lip sync turned off
-    static final int KODI_STATE_MISSING = 6;     // Kodi isn't installed on the TV
 
     static final int CODEC_PCM = 0;
     static final int CODEC_OPUS = 1;

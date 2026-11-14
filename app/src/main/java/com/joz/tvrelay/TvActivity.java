@@ -5,19 +5,23 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.LinkProperties;
 import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** The TV's screen: one big Start/Stop button, everything else read-only. */
@@ -29,9 +33,8 @@ public class TvActivity extends Activity {
     private Button toggle;
     private TextView state;
     private TextView detail;
-    private TextView kodiStatus;
     private TextView hint;
-    private View kodiButton;
+    private View ipButton;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -49,7 +52,6 @@ public class TvActivity extends Activity {
         toggle = findViewById(R.id.toggle);
         state = findViewById(R.id.state);
         detail = findViewById(R.id.detail);
-        kodiStatus = findViewById(R.id.kodiStatus);
         hint = findViewById(R.id.hint);
 
         toggle.setOnClickListener(v -> {
@@ -59,10 +61,10 @@ public class TvActivity extends Activity {
                 requestCapture();
             }
         });
-        kodiButton = findViewById(R.id.kodi);
-        kodiButton.setOnClickListener(v -> showKodiLogin());
+        ipButton = findViewById(R.id.showIp);
+        ipButton.setOnClickListener(v -> showIp());
 
-        for (int id : new int[]{R.id.toggle, R.id.kodi}) {
+        for (int id : new int[]{R.id.toggle, R.id.showIp}) {
             findViewById(id).setOnFocusChangeListener((v, focused) -> {
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start();
                 render(); // the hint explains the focused button
@@ -109,15 +111,9 @@ public class TvActivity extends Activity {
             state.setText("Streaming to " + n + (n == 1 ? " phone" : " phones"));
             detail.setText(SenderService.format);
         }
-        kodiStatus.setText(on ? KodiSync.status : "");
-        // Not worth a line on the TV for people who don't use Kodi.
-        int k = KodiSync.state;
-        boolean quiet = k == Protocol.KODI_STATE_OFF || k == Protocol.KODI_STATE_MISSING
-                || (k == Protocol.KODI_STATE_UNREACHABLE && !KodiSync.syncing);
-        kodiStatus.setVisibility(on && !quiet ? View.VISIBLE : View.GONE);
-        hint.setText(kodiButton.isFocused()
-                ? "Optional, only if you watch in Kodi: lets TV Relay line up Kodi's picture with the sound "
-                + "on your phone. Not needed for anything else."
+        hint.setText(ipButton.isFocused()
+                ? "Only needed if your phone can't find the TV by itself: type this address into the phone "
+                + "under Listen > Connect directly."
                 : on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }
@@ -164,72 +160,34 @@ public class TvActivity extends Activity {
                 .putExtra(SenderService.EXTRA_RESULT_DATA, data));
     }
 
-    /** Port and username are prefilled with Kodi's defaults, so usually only the password needs typing. */
-    private void showKodiLogin() {
-        Settings settings = Settings.load(this);
-        LinearLayout form = new LinearLayout(this);
-        form.setOrientation(LinearLayout.VERTICAL);
-        int pad = (int) (24 * getResources().getDisplayMetrics().density);
-        form.setPadding(pad, pad / 2, pad, 0);
-        EditText port = field(form, "Port", String.valueOf(settings.kodiPort), InputType.TYPE_CLASS_NUMBER);
-        EditText user = field(form, "Username", settings.kodiUser, InputType.TYPE_CLASS_TEXT);
-        EditText pass = field(form, "Password", settings.kodiPass,
-                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-
+    private void showIp() {
+        String ip = ipAddress();
         new AlertDialog.Builder(this)
-                .setTitle("Connect to Kodi")
-                .setMessage("Optional, only for Kodi lip sync. In Kodi: Settings > Services > Control > "
-                        + "Allow remote control via HTTP. Enter the same details here.")
-                .setView(form)
-                .setPositiveButton("Save", (d, w) -> {
-                    try {
-                        settings.kodiPort = Integer.parseInt(port.getText().toString().trim());
-                    } catch (NumberFormatException e) {
-                        settings.kodiPort = 8080;
-                    }
-                    settings.kodiUser = user.getText().toString().trim();
-                    settings.kodiPass = pass.getText().toString();
-                    settings.save(this);
-                    testKodiLogin();
-                })
-                .setNegativeButton("Cancel", null)
+                .setTitle("This TV's IP address")
+                .setMessage((ip != null ? ip : "Not connected to a network") + "\n\nThe phone usually finds the TV "
+                        + "by itself. If it doesn't, open TV Relay on the phone and enter this under "
+                        + "Listen > Connect directly.")
+                .setPositiveButton("OK", null)
                 .show();
-        pass.requestFocus();
     }
 
-    /** Saving the login checks it straight away, so mistakes show up here and not mid-movie. */
-    private void testKodiLogin() {
-        AlertDialog checking = new AlertDialog.Builder(this)
-                .setTitle("Connect to Kodi")
-                .setMessage("Checking the connection to Kodi…")
-                .setCancelable(false)
-                .show();
-        new Thread(() -> {
-            String result = KodiSync.testLogin(this);
-            runOnUiThread(() -> {
-                checking.dismiss();
-                if (isFinishing()) return;
-                boolean ok = result.startsWith("Connected");
-                AlertDialog.Builder b = new AlertDialog.Builder(this)
-                        .setTitle(ok ? "Kodi connected" : "Kodi not connected")
-                        .setMessage(result)
-                        .setPositiveButton("OK", null);
-                if (!ok) b.setNegativeButton("Edit login", (d, w) -> showKodiLogin());
-                b.show();
-            });
-        }, "kodi-test").start();
-    }
-
-    private EditText field(LinearLayout form, String label, String value, int inputType) {
-        TextView l = new TextView(this);
-        l.setText(label);
-        l.setTextSize(16);
-        form.addView(l);
-        EditText e = new EditText(this);
-        e.setSingleLine(true); // before setInputType: it would replace the password masking
-        e.setInputType(inputType);
-        e.setText(value);
-        form.addView(e);
-        return e;
+    /** The TV's IPv4 address on the active network (Wi-Fi or Ethernet), or null. */
+    private String ipAddress() {
+        ConnectivityManager cm = getSystemService(ConnectivityManager.class);
+        LinkProperties lp = cm.getLinkProperties(cm.getActiveNetwork());
+        if (lp != null) {
+            for (LinkAddress la : lp.getLinkAddresses()) {
+                if (la.getAddress() instanceof Inet4Address) return la.getAddress().getHostAddress();
+            }
+        }
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    if (a instanceof Inet4Address && !a.isLoopbackAddress()) return a.getHostAddress();
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }

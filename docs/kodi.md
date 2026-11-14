@@ -30,16 +30,16 @@ An alternative is [PlexKodiConnect](https://github.com/croneter/PlexKodiConnect)
 1. In Kodi: **Settings (gear) → Services → Control**.
 2. Turn on **Allow remote control via HTTP**.
 3. Leave **Port** at `8080` and **Username** at `kodi`. Set a **Password**. (If you don't see the username and password fields, change the settings level at the bottom left to Standard or higher.)
-4. Open **TV Relay** on the TV and choose **Connect to Kodi**. Enter the same port, username and password and choose **Save**.
+4. On your phone, open TV Relay's **Kodi sync** tab. Under **Kodi login**, enter the same port, username and password, then tap **Test connection**.
 
-TV Relay checks the login straight away and tells you whether it connected, the password is wrong, or Kodi couldn't be reached.
+The card at the top of the tab turns green and says **Kodi connected**, or tells you what's wrong: the password, or Kodi couldn't be reached. The phone needs to know where the TV is, so tap **Listen** once first if the test says so.
 
-Kodi has to be open for TV Relay to reach it. It's fine to leave it running in the background.
+Kodi has to be open on the TV for TV Relay to reach it. It's fine to leave it running in the background. The phone talks to Kodi over your Wi-Fi; Kodi's remote control isn't encrypted, so its password crosses your home network in plain text.
 
 ## 4. Turn it on from your phone
 
 1. In TV Relay on the TV, choose **Start streaming**. On your phone, tap **Listen**.
-2. Open the **Kodi sync** tab on the phone. The dot at the top turns green and says **Connected to Kodi** once the phone, the TV and Kodi can all talk to each other.
+2. Open the **Kodi sync** tab on the phone. The card at the top should say **Kodi connected**.
 3. Set **Mode** to **Automatic**. TV Relay then follows the measured Wi-Fi delay by itself.
 4. Play something in Kodi and listen on your phone. If the sound still seems late, move **Adjustment** to the right; if it's early, move it to the left. The **−5 ms / +5 ms** buttons are for fine-tuning.
 
@@ -52,8 +52,8 @@ If moving the slider right makes the sound *later* instead of earlier, turn on *
 | What the phone says | What to do |
 | --- | --- |
 | Can't reach Kodi | Open Kodi on the TV and check **Allow remote control via HTTP** is on. |
-| Kodi login is wrong | Re-enter the password under **Connect to Kodi** in TV Relay on the TV. |
-| Kodi isn't installed on the TV | Install Kodi from the Play Store on the TV. |
+| The username or password is wrong | Re-enter them under **Kodi login** on the phone's Kodi sync tab. |
+| The phone doesn't know where the TV is yet | Tap **Listen** once, or enter the TV's IP (**Show IP address** on the TV) under **Connect directly**. |
 | Waiting for the TV… | Start streaming on the TV and tap Listen on the phone. |
 
 Notes:

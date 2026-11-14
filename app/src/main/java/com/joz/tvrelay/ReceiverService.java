@@ -37,9 +37,7 @@ public class ReceiverService extends Service {
     static volatile int kodiMode;
     static volatile int kodiAdjustMs;
     static volatile boolean kodiFlip;
-    // What the TV reports back about Kodi.
-    static volatile int kodiState = -1;
-    static volatile int kodiAppliedMs;
+    static volatile String tvHost;  // the TV's IP once found, for Kodi and the Test button
 
     private Settings settings;
     private volatile InetAddress manualHost;
@@ -74,7 +72,7 @@ public class ReceiverService extends Service {
         kodiMode = settings.kodiMode;
         kodiAdjustMs = settings.kodiAdjustMs;
         kodiFlip = settings.kodiFlip;
-        kodiState = -1;
+        tvHost = null;
         new Thread(() -> {
             try {
                 if (host != null && !host.isEmpty()) manualHost = InetAddress.getByName(host);
@@ -136,10 +134,6 @@ public class ReceiverService extends Service {
                 if (magic == Protocol.MAGIC_PONG && len >= Protocol.PONG_BYTES) {
                     float rtt = (System.nanoTime() - in.getLong(4)) / 1e6f;
                     rttMs = rttMs < 0 ? rtt : rttMs + (rtt - rttMs) * 0.2f;
-                    if (len >= Protocol.PONG_BYTES) {
-                        kodiAppliedMs = in.getShort(12);
-                        kodiState = buf[14];
-                    }
                     continue;
                 }
                 if (magic != Protocol.MAGIC_AUDIO) continue;
@@ -248,6 +242,10 @@ public class ReceiverService extends Service {
     }
 
     private void keepaliveLoop() {
+        // The phone drives Kodi itself now; older TVs still do it when asked, so never ask them.
+        KodiSync kodi = new KodiSync(this);
+        String lastSavedHost = settings.lastTvHost;
+        kodi.start();
         StreamConfig cfg = settings.stream();
         byte[] hello = new byte[Protocol.SUBSCRIBE_BYTES];
         ByteBuffer h = ByteBuffer.wrap(hello);
@@ -269,19 +267,24 @@ public class ReceiverService extends Service {
                 if (server != null && !receiving) server = null; // TV went away; search again
                 InetAddress dest = manualHost != null ? manualHost : server != null ? server : broadcast;
                 h.putLong(8, System.nanoTime());
-                hello[16] = (byte) ((settings.sendTwice ? Protocol.FLAG_SEND_TWICE : 0)
-                        | (kodiFlip ? Protocol.FLAG_KODI_FLIP : 0));
-                hello[17] = (byte) kodiMode;
+                hello[16] = (byte) (settings.sendTwice ? Protocol.FLAG_SEND_TWICE : 0);
+                hello[17] = (byte) Protocol.KODI_OFF;
                 // Kodi only takes 25 ms steps, so round the adjustment up to one and make up the
                 // remainder here by holding audio back a little longer: 5 ms precision overall.
                 int adjust = kodiMode == Protocol.KODI_OFF ? 0 : kodiAdjustMs;
                 int coarse = kodiMode == Protocol.KODI_OFF ? 0 : (int) Math.ceil(adjust / 25.0) * 25;
                 int fineMs = coarse - adjust;
                 jitter.setExtraDelay(Math.round(fineMs / 5f));
-                h.putShort(18, (short) coarse);
                 // 5 s average, so Kodi isn't chasing every Wi-Fi wobble. The fine-tune delay is left
                 // out, or Kodi would cancel it again.
-                h.putShort(20, (short) Math.max(0, Math.round(history.averageTotal(20)) - fineMs));
+                kodi.update(kodiMode, coarse, Math.max(0, Math.round(history.averageTotal(20)) - fineMs), kodiFlip);
+                InetAddress tv = receiving ? server : manualHost;
+                tvHost = tv != null ? tv.getHostAddress() : null;
+                kodi.setHost(tvHost);
+                if (receiving && !tvHost.equals(lastSavedHost)) {
+                    Settings.saveLastTvHost(this, tvHost); // lets the Test button work before the next Listen
+                    lastSavedHost = tvHost;
+                }
                 try {
                     socket.send(new DatagramPacket(hello, hello.length, dest, Protocol.PORT));
                 } catch (IOException ignored) {
@@ -295,6 +298,7 @@ public class ReceiverService extends Service {
             }
             SystemClock.sleep(250);
         }
+        kodi.stop(); // puts Kodi's delay back to zero
     }
 
     private void acquireLocks() {

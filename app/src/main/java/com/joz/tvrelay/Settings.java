@@ -38,11 +38,12 @@ final class Settings {
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
-    // TV side: how to reach Kodi on the same TV
+    // phone side: Kodi's HTTP remote control login
     int kodiPort = 8080;
     String kodiUser = "kodi";
     String kodiPass = "";
     String host = "";   // phone side: TV address, blank = discover
+    String lastTvHost = ""; // phone side: where the TV was last found
     boolean updatePrereleases = true; // every release so far is a pre-release
 
     static Settings load(Context c) {
@@ -70,6 +71,7 @@ final class Settings {
         s.kodiUser = p.getString("kodiUser", "kodi");
         s.kodiPass = p.getString("kodiPass", "");
         s.host = p.getString("host", "");
+        s.lastTvHost = p.getString("lastTvHost", "");
         s.updatePrereleases = p.getBoolean("updatePrereleases", true);
         return s;
     }
@@ -96,6 +98,11 @@ final class Settings {
                 .putString("host", host)
                 .putBoolean("updatePrereleases", updatePrereleases)
                 .apply();
+    }
+
+    /** Written on its own so the receiver doesn't overwrite settings changed on screen meanwhile. */
+    static void saveLastTvHost(Context c, String host) {
+        prefs(c).edit().putString("lastTvHost", host).apply();
     }
 
     /** Whether GitHub marks this version as a pre-release, remembered from the last check. */
