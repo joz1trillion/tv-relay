@@ -43,6 +43,7 @@ final class Settings {
     String kodiUser = "kodi";
     String kodiPass = "";
     String host = "";   // phone side: TV address, blank = discover
+    boolean kodiUnlocked;  // Kodi tab is hidden until the graph is tapped 7 times
 
     static Settings load(Context c) {
         SharedPreferences p = prefs(c);
@@ -69,6 +70,7 @@ final class Settings {
         s.kodiUser = p.getString("kodiUser", "kodi");
         s.kodiPass = p.getString("kodiPass", "");
         s.host = p.getString("host", "");
+        s.kodiUnlocked = p.getBoolean("kodiUnlocked", false);
         return s;
     }
 
@@ -92,6 +94,7 @@ final class Settings {
                 .putString("kodiUser", kodiUser)
                 .putString("kodiPass", kodiPass)
                 .putString("host", host)
+                .putBoolean("kodiUnlocked", kodiUnlocked)
                 .apply();
     }
 

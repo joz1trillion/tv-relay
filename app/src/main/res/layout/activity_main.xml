@@ -94,8 +94,16 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:alpha="0.7"
-                        android:text="Doesn't include the TV's own capture delay, which Android doesn't report."
+                        android:text="Doesn't include the TV's own capture delay, and may not include Bluetooth headphone delay; Android doesn't report either."
                         android:textSize="12sp" />
+
+                    <!-- "Connect directly" dropdown, built in MainActivity. -->
+                    <LinearLayout
+                        android:id="@+id/listenExtras"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:orientation="vertical" />
                 </LinearLayout>
             </ScrollView>
 

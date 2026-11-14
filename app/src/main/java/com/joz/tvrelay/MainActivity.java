@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Rational;
@@ -32,6 +33,7 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /** Phone screen: Listen (controls, stats, graph), Settings, and Kodi sync tabs. */
 public class MainActivity extends Activity {
@@ -97,6 +99,9 @@ public class MainActivity extends Activity {
 
         buildSettings(findViewById(R.id.settingsList));
         buildKodi(findViewById(R.id.kodiList));
+        buildConnectDirectly(findViewById(R.id.listenExtras));
+        tabs[2].setVisibility(settings.kodiUnlocked ? View.VISIBLE : View.GONE);
+        graph.setOnClickListener(v -> onGraphTapped());
     }
 
     private void showTab(int index) {
@@ -135,11 +140,29 @@ public class MainActivity extends Activity {
         toggle(list, "Keep screen on", R.string.info_keep_screen_on, settings.keepScreenOn,
                 v -> settings.keepScreenOn = v, false);
         toggle(list, "Mini window", R.string.info_pip, settings.pip, v -> settings.pip = v, false);
+    }
 
-        header(list, "Connection");
-        label(list, "TV IP address", R.string.info_host);
+    // ---- Listen tab extras ----
+
+    /** Collapsed by default: only needed when the phone can't find the TV by itself. */
+    private void buildConnectDirectly(LinearLayout box) {
+        TextView toggle = text(box, "", 16);
+        toggle.setPadding(0, dp(8), 0, dp(8));
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setVisibility(settings.host.isEmpty() ? View.GONE : View.VISIBLE);
+        box.addView(body);
+        Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + "Connect directly");
+        label.run();
+        toggle.setOnClickListener(v -> {
+            body.setVisibility(body.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            label.run();
+        });
+
+        TextView help = text(body, getString(R.string.info_host), 13);
+        help.setAlpha(0.7f);
         EditText host = new EditText(this);
-        host.setHint("Blank = find it automatically");
+        host.setHint("TV IP address, e.g. 192.168.1.50");
         host.setSingleLine(true);
         host.setText(settings.host);
         host.addTextChangedListener(new TextWatcher() {
@@ -151,7 +174,41 @@ public class MainActivity extends Activity {
                 settings.save(MainActivity.this);
             }
         });
-        list.addView(host);
+        body.addView(host);
+    }
+
+    // ---- Kodi easter egg ----
+
+    private static final int UNLOCK_TAPS = 7;
+    private int graphTaps;
+    private long lastGraphTapMs;
+    private Toast tapToast;
+
+    /** Like Android's "You are now a developer": Kodi sync is untested, so it stays hidden until asked for. */
+    private void onGraphTapped() {
+        if (settings.kodiUnlocked) {
+            toast("You're already a Kodi user.");
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastGraphTapMs > 2000) graphTaps = 0;
+        lastGraphTapMs = now;
+        graphTaps++;
+        int left = UNLOCK_TAPS - graphTaps;
+        if (left <= 0) {
+            settings.kodiUnlocked = true;
+            settings.save(this);
+            tabs[2].setVisibility(View.VISIBLE);
+            toast("You are now a Kodi user!");
+        } else if (graphTaps >= 2) {
+            toast("You are " + left + (left == 1 ? " tap" : " taps") + " away from being a Kodi user.");
+        }
+    }
+
+    private void toast(String text) {
+        if (tapToast != null) tapToast.cancel();
+        tapToast = Toast.makeText(this, text, Toast.LENGTH_SHORT);
+        tapToast.show();
     }
 
     // ---- Kodi tab ----
@@ -439,8 +496,8 @@ public class MainActivity extends Activity {
                     .append("\ncopies dropped ").append(ReceiverService.duplicates)
                     .append("  saved by copy ").append(ReceiverService.recovered)
                     .append("\noutput: ").append(ReceiverService.outputInfo)
-                    .append(", ").append(ReceiverService.outputUnderruns).append(" glitches")
-                    .append("\n").append(describeKodi());
+                    .append(", ").append(ReceiverService.outputUnderruns).append(" glitches");
+            if (settings.kodiUnlocked) sb.append("\n").append(describeKodi());
         }
         return sb.toString();
     }
