@@ -2,7 +2,6 @@ package com.joz.tvrelay;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -34,7 +33,7 @@ public class TvActivity extends Activity {
     private TextView state;
     private TextView detail;
     private TextView hint;
-    private View ipButton;
+    private TextView ip;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -61,15 +60,9 @@ public class TvActivity extends Activity {
                 requestCapture();
             }
         });
-        ipButton = findViewById(R.id.showIp);
-        ipButton.setOnClickListener(v -> showIp());
-
-        for (int id : new int[]{R.id.toggle, R.id.showIp}) {
-            findViewById(id).setOnFocusChangeListener((v, focused) -> {
-                v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start();
-                render(); // the hint explains the focused button
-            });
-        }
+        ip = findViewById(R.id.ip);
+        toggle.setOnFocusChangeListener((v, focused) ->
+                v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
 
         updates = new UpdateUi(this, findViewById(R.id.version));
@@ -111,10 +104,9 @@ public class TvActivity extends Activity {
             state.setText("Streaming to " + n + (n == 1 ? " phone" : " phones"));
             detail.setText(SenderService.format);
         }
-        hint.setText(ipButton.isFocused()
-                ? "Only needed if your phone can't find the TV by itself: type this address into the phone "
-                + "under Listen > Connect directly."
-                : on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
+        String address = ipAddress();
+        ip.setText(address != null ? "IP address " + address : "No network");
+        hint.setText(on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }
 
@@ -158,17 +150,6 @@ public class TvActivity extends Activity {
         startForegroundService(new Intent(this, SenderService.class)
                 .putExtra(SenderService.EXTRA_RESULT_CODE, resultCode)
                 .putExtra(SenderService.EXTRA_RESULT_DATA, data));
-    }
-
-    private void showIp() {
-        String ip = ipAddress();
-        new AlertDialog.Builder(this)
-                .setTitle("This TV's IP address")
-                .setMessage((ip != null ? ip : "Not connected to a network") + "\n\nThe phone usually finds the TV "
-                        + "by itself. If it doesn't, open TV Relay on the phone and enter this under "
-                        + "Listen > Connect directly.")
-                .setPositiveButton("OK", null)
-                .show();
     }
 
     /** The TV's IPv4 address on the active network (Wi-Fi or Ethernet), or null. */

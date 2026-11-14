@@ -32,6 +32,7 @@ final class KodiSync {
 
     private final Context context;
     private volatile String host;  // the TV's IP, once the receiver knows it
+    private String kodiHost;       // set in the login when Kodi isn't on that TV
     private int port;
     private String auth;
     private volatile int mode;
@@ -53,6 +54,7 @@ final class KodiSync {
     /** Re-read each tick, so editing the Kodi login applies without restarting. */
     private void loadLogin() {
         Settings s = Settings.load(context);
+        kodiHost = s.kodiHost.isEmpty() ? null : s.kodiHost;
         port = s.kodiPort;
         auth = s.kodiUser.isEmpty() ? null : "Basic " + Base64.encodeToString(
                 (s.kodiUser + ":" + s.kodiPass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
@@ -106,7 +108,7 @@ final class KodiSync {
         loadLogin();
         boolean phoneActive = SystemClock.elapsedRealtime() - lastUpdateMs < 5000;
         int m = phoneActive ? mode : Protocol.KODI_OFF;
-        if (host == null) {
+        if (target() == null) {
             setState(Protocol.KODI_STATE_OFF, "Waiting for the TV");
             return;
         }
@@ -162,11 +164,12 @@ final class KodiSync {
         status = text;
     }
 
-    /** Checks the saved login against Kodi on {@code host} right away, for the Test button. Blocking. */
-    static String testLogin(Context context, String host) {
+    /** Checks the saved login against Kodi right away, for the Test button. Blocking. */
+    static String testLogin(Context context, String tvHost) {
         KodiSync k = new KodiSync(context);
         k.loadLogin();
-        k.host = host;
+        k.host = tvHost;
+        String host = k.target();
         try {
             int[] v = k.kodiVersion();
             String name = "Kodi " + v[0] + "." + v[1];
@@ -181,6 +184,10 @@ final class KodiSync {
     }
 
     /** {major, minor}; also proves the login works. */
+    private String target() {
+        return kodiHost != null ? kodiHost : host;
+    }
+
     private int[] kodiVersion() throws Exception {
         JSONObject params = new JSONObject().put("properties", new JSONArray().put("version"));
         JSONObject v = rpc("Application.GetProperties", params).getJSONObject("result").getJSONObject("version");
@@ -211,7 +218,7 @@ final class KodiSync {
     private JSONObject rpc(String method, JSONObject params) throws Exception {
         JSONObject req = new JSONObject().put("jsonrpc", "2.0").put("id", 1)
                 .put("method", method).put("params", params);
-        HttpURLConnection c = (HttpURLConnection) new URL("http://" + host + ":" + port + "/jsonrpc").openConnection();
+        HttpURLConnection c = (HttpURLConnection) new URL("http://" + target() + ":" + port + "/jsonrpc").openConnection();
         try {
             c.setConnectTimeout(1000);
             c.setReadTimeout(2000);

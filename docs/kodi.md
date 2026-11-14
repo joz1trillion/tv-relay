@@ -30,7 +30,7 @@ An alternative is [PlexKodiConnect](https://github.com/croneter/PlexKodiConnect)
 1. In Kodi: **Settings (gear) → Services → Control**.
 2. Turn on **Allow remote control via HTTP**.
 3. Leave **Port** at `8080` and **Username** at `kodi`. Set a **Password**. (If you don't see the username and password fields, change the settings level at the bottom left to Standard or higher.)
-4. On your phone, open TV Relay's **Kodi sync** tab. Under **Kodi login**, enter the same port, username and password, then tap **Test connection**.
+4. On your phone, open TV Relay's **Kodi sync** tab. Open **Kodi login** and enter the same port, username and password, then tap **Test connection**. Leave **Kodi IP** blank when Kodi runs on the TV you stream from; fill it in only if Kodi is on another device.
 
 The card at the top of the tab turns green and says **Kodi connected**, or tells you what's wrong: the password, or Kodi couldn't be reached. The phone needs to know where the TV is, so tap **Listen** once first if the test says so.
 
@@ -53,7 +53,7 @@ If moving the slider right makes the sound *later* instead of earlier, turn on *
 | --- | --- |
 | Can't reach Kodi | Open Kodi on the TV and check **Allow remote control via HTTP** is on. |
 | The username or password is wrong | Re-enter them under **Kodi login** on the phone's Kodi sync tab. |
-| The phone doesn't know where the TV is yet | Tap **Listen** once, or enter the TV's IP (**Show IP address** on the TV) under **Connect directly**. |
+| The phone doesn't know where the TV is yet | Tap **Listen** once, or enter the TV's IP (shown on the TV under **Start streaming**) under **Connect directly**. |
 | Waiting for the TV… | Start streaming on the TV and tap Listen on the phone. |
 
 Notes:

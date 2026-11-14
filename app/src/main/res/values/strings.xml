@@ -12,7 +12,7 @@
     <string name="info_send_twice">The TV sends each packet again 10 ms later, so if Wi-Fi drops one the copy usually gets through. Far fewer skips, twice the data (still small).</string>
     <string name="info_keep_screen_on">Android only uses its fastest Wi-Fi mode while the screen is on and this app is open. Dimming is fine.</string>
     <string name="info_pip">Leaving the app while listening shrinks it to a small window. That keeps Wi-Fi in its fastest mode while you use other apps.</string>
-    <string name="info_host">Only needed if the phone can\'t find the TV by itself. Press Show IP address in TV Relay on the TV to see it.</string>
+    <string name="info_host">Only needed if the phone can\'t find the TV by itself. TV Relay on the TV shows it under Start streaming.</string>
     <string name="info_kodi_mode">Makes Kodi play its audio early so the sound on your phone matches the picture.\n\nAutomatic: follows the measured delay, plus your adjustment.\nManual: only your adjustment.</string>
     <string name="info_kodi_adjust">Move right if the sound is late, left if it\'s early.\n\nKodi only takes 25 ms steps; the phone covers the rest, so you get 5 ms precision.</string>
     <string name="info_kodi_flip">Turn on if moving the slider right makes the sound later instead of earlier.</string>

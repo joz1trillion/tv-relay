@@ -23,7 +23,7 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 
 1. Install the same APK on the TV and the phone (sideload, or `adb install tv-relay.apk`). After that, both update themselves: the version number in the bottom-right corner shows a blue dot when a new version is out. Select it to install that version, or pick a specific newer one. The phone can also use [Obtainium](https://github.com/ImranR98/Obtainium) (turn on pre-releases).
 2. **TV:** open TV Relay, press **Start streaming**, and allow the recording prompt. Then press **Back to my show**.
-3. **Phone:** open TV Relay and tap **Listen**. It finds the TV automatically; if not, enter the TV's IP (TV app → **Show IP address**) under **Connect directly** on the Listen tab.
+3. **Phone:** open TV Relay and tap **Listen**. It finds the TV automatically; if not, enter the TV's IP (shown on the TV under **Start streaming**) under **Connect directly** on the Listen tab.
 
 All settings live in the phone app; the TV follows whatever the phone asks for. Every setting has an info button explaining what it does.
 
@@ -31,7 +31,7 @@ All settings live in the phone app; the TV follows whatever the phone asks for. 
 
 1. Install Kodi 21 or newer on the TV from the Play Store.
 2. In Kodi on the TV: Settings → Services → Control → **Allow remote control via HTTP**, and set a password.
-3. On the phone: **Kodi sync** tab → **Kodi login**, enter the same port, username and password, and tap **Test connection**.
+3. On the phone: **Kodi sync** tab → open **Kodi login**, enter the same port, username and password, and tap **Test connection**.
 4. Tap **Listen**, set Mode to **Automatic**, then fine-tune with the slider.
 
 New to Kodi? The [full Kodi guide](docs/kodi.md) covers installing it, getting Plex or Jellyfin into it, and troubleshooting.

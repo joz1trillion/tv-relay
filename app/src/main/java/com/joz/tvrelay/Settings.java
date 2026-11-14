@@ -39,6 +39,7 @@ final class Settings {
     int kodiAdjustMs;
     boolean kodiFlip;
     // phone side: Kodi's HTTP remote control login
+    String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
     int kodiPort = 8080;
     String kodiUser = "kodi";
     String kodiPass = "";
@@ -67,6 +68,7 @@ final class Settings {
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
+        s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
         s.kodiPass = p.getString("kodiPass", "");
@@ -92,6 +94,7 @@ final class Settings {
                 .putInt("kodiMode", kodiMode)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
+                .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)
                 .putString("kodiPass", kodiPass)
@@ -107,7 +110,11 @@ final class Settings {
 
     /** Whether GitHub marks this version as a pre-release, remembered from the last check. */
     static boolean isPrerelease(Context c, String version) {
-        return prefs(c).getBoolean("pre_" + version, false);
+        SharedPreferences p = prefs(c);
+        String key = "pre_" + version;
+        // GitHub's answer wins (a release can be promoted later); until then, what the build says.
+        return p.contains(key) ? p.getBoolean(key, false)
+                : version.equals(Updater.versionName(c)) && BuildConfig.PRERELEASE;
     }
 
     static void setPrerelease(Context c, String version, boolean prerelease) {

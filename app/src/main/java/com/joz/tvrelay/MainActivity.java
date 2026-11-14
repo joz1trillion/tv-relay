@@ -161,20 +161,26 @@ public class MainActivity extends Activity {
 
     // ---- Listen tab extras ----
 
-    /** Collapsed by default: only needed when the phone can't find the TV by itself. */
-    private void buildConnectDirectly(LinearLayout box) {
-        TextView toggle = text(box, "", 16);
-        toggle.setPadding(0, dp(8), 0, dp(8));
+    /** A "▸ title" row that shows or hides the returned box underneath it. */
+    private LinearLayout dropdown(LinearLayout list, String title, boolean open) {
+        TextView toggle = text(list, "", 16);
+        toggle.setPadding(0, dp(12), 0, dp(8));
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setVisibility(settings.host.isEmpty() ? View.GONE : View.VISIBLE);
-        box.addView(body);
-        Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + "Connect directly");
+        body.setVisibility(open ? View.VISIBLE : View.GONE);
+        list.addView(body);
+        Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + title);
         label.run();
         toggle.setOnClickListener(v -> {
             body.setVisibility(body.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
             label.run();
         });
+        return body;
+    }
+
+    /** Collapsed by default: only needed when the phone can't find the TV by itself. */
+    private void buildConnectDirectly(LinearLayout box) {
+        LinearLayout body = dropdown(box, "Connect directly", !settings.host.isEmpty());
 
         TextView help = text(body, getString(R.string.info_host), 13);
         help.setAlpha(0.7f);
@@ -255,18 +261,7 @@ public class MainActivity extends Activity {
 
     /** What Kodi sync is and how to set it up, collapsed. The full guide is on GitHub. */
     private void buildKodiSetup(LinearLayout list) {
-        TextView toggle = text(list, "", 16);
-        toggle.setPadding(0, dp(16), 0, dp(4));
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        body.setVisibility(View.GONE);
-        list.addView(body);
-        Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + "How to set it up");
-        label.run();
-        toggle.setOnClickListener(v -> {
-            body.setVisibility(body.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
-            label.run();
-        });
+        LinearLayout body = dropdown(list, "How to set it up", false);
 
         TextView intro = text(body, "Optional, for watching in Kodi on the TV: TV Relay makes Kodi play its "
                 + "audio slightly early, so the sound on this phone lines up with the picture.", 14);
@@ -274,7 +269,7 @@ public class MainActivity extends Activity {
         TextView steps = text(body, "1. On the TV, install Kodi (version 21 or newer) from the Play Store.\n"
                 + "2. In Kodi: Settings → Services → Control → turn on \"Allow remote control via HTTP\" "
                 + "and set a password.\n"
-                + "3. Here: enter that password under Kodi login and tap Test connection.\n"
+                + "3. Here: open Kodi login, enter that password and tap Test connection.\n"
                 + "4. Tap Listen, set Mode to Automatic, and play something in Kodi.", 14);
         steps.setLineSpacing(dp(4), 1f);
         TextView link = text(body, "Full guide, including Plex in Kodi →", 14);
@@ -290,8 +285,10 @@ public class MainActivity extends Activity {
     }
 
     /** Kodi's HTTP login, typed here rather than with the TV remote, and a button to try it. */
-    private void buildKodiLogin(LinearLayout list) {
-        header(list, "Kodi login");
+    private void buildKodiLogin(LinearLayout parent) {
+        LinearLayout list = dropdown(parent, "Kodi login", false);
+        loginField(list, "Kodi IP (optional; blank = the TV you stream from)", settings.kodiHost,
+                InputType.TYPE_CLASS_TEXT, v -> settings.kodiHost = v);
         loginField(list, "Port", String.valueOf(settings.kodiPort), InputType.TYPE_CLASS_NUMBER, v -> {
             try {
                 settings.kodiPort = Integer.parseInt(v);
@@ -336,10 +333,10 @@ public class MainActivity extends Activity {
     private void testKodi(Button button) {
         String host = ReceiverService.tvHost;
         if (host == null) host = !settings.host.isEmpty() ? settings.host : Settings.load(this).lastTvHost;
-        if (host.isEmpty()) {
+        if (host.isEmpty() && settings.kodiHost.isEmpty()) {
             kodiTestOk = false;
             kodiTestResult = "The phone doesn't know where the TV is yet. Tap Listen once, or enter the TV's IP "
-                    + "under Connect directly (Show IP on the TV tells you).";
+                    + "under Connect directly (it's shown on the TV under Start streaming).";
             showKodiStatus();
             return;
         }

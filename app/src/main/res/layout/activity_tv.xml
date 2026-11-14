@@ -47,10 +47,15 @@
                 android:textSize="28sp"
                 android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/showIp"
-                style="@style/TvButton"
-                android:text="Show IP address" />
+            <!-- For the phone's Connect directly; same look as the version label. -->
+            <TextView
+                android:id="@+id/ip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:paddingLeft="12dp"
+                android:textColor="#8E8E96"
+                android:textSize="16sp" />
         </LinearLayout>
 
         <LinearLayout
