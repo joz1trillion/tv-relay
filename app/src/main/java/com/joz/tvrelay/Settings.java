@@ -43,7 +43,8 @@ final class Settings {
     String kodiUser = "kodi";
     String kodiPass = "";
     String host = "";   // phone side: TV address, blank = discover
-    boolean kodiUnlocked;  // Kodi tab is hidden until the graph is tapped 7 times
+    boolean kodiSeen;   // phone side: Kodi has answered once, so the setup steps start collapsed
+    boolean updatePrereleases = true; // every release so far is a pre-release
 
     static Settings load(Context c) {
         SharedPreferences p = prefs(c);
@@ -70,7 +71,8 @@ final class Settings {
         s.kodiUser = p.getString("kodiUser", "kodi");
         s.kodiPass = p.getString("kodiPass", "");
         s.host = p.getString("host", "");
-        s.kodiUnlocked = p.getBoolean("kodiUnlocked", false);
+        s.kodiSeen = p.getBoolean("kodiSeen", false);
+        s.updatePrereleases = p.getBoolean("updatePrereleases", true);
         return s;
     }
 
@@ -94,8 +96,18 @@ final class Settings {
                 .putString("kodiUser", kodiUser)
                 .putString("kodiPass", kodiPass)
                 .putString("host", host)
-                .putBoolean("kodiUnlocked", kodiUnlocked)
+                .putBoolean("kodiSeen", kodiSeen)
+                .putBoolean("updatePrereleases", updatePrereleases)
                 .apply();
+    }
+
+    /** Whether GitHub marks this version as a pre-release, remembered from the last check. */
+    static boolean isPrerelease(Context c, String version) {
+        return prefs(c).getBoolean("pre_" + version, false);
+    }
+
+    static void setPrerelease(Context c, String version, boolean prerelease) {
+        prefs(c).edit().putBoolean("pre_" + version, prerelease).apply();
     }
 
     StreamConfig stream() {

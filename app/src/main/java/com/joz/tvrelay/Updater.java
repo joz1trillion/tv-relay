@@ -15,19 +15,25 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 
-/** Checks GitHub for a newer release (prereleases included) and hands the APK to Android's installer. */
+/** Lists the GitHub releases that have an APK and hands the chosen one to Android's installer. */
 public final class Updater {
     public static final String ACTION_INSTALL_STATUS = "com.joz.tvrelay.INSTALL_STATUS";
     private static final String RELEASES = "https://api.github.com/repos/joz1trillion/tv-relay/releases?per_page=10";
 
     public static final class Release {
         public final String version;
+        public final boolean prerelease;
+        public final String date;  // yyyy-mm-dd
         public final String apkUrl;
         public final long size;
 
-        Release(String version, String apkUrl, long size) {
+        Release(String version, boolean prerelease, String date, String apkUrl, long size) {
             this.version = version;
+            this.prerelease = prerelease;
+            this.date = date;
             this.apkUrl = apkUrl;
             this.size = size;
         }
@@ -48,32 +54,45 @@ public final class Updater {
         }
     }
 
-    /** The newest release with an APK attached if it's newer than this install, otherwise null. Blocking. */
-    public static Release checkForUpdate(Context context) throws IOException {
+    /** Every published release with an APK attached, newest first. Blocking. */
+    public static List<Release> releases() throws IOException {
         HttpURLConnection c = open(RELEASES);
         c.setRequestProperty("Accept", "application/vnd.github+json");
         try {
             if (c.getResponseCode() != 200) throw new IOException("GitHub replied " + c.getResponseCode());
             JSONArray releases = new JSONArray(readAll(c.getInputStream()));
-            String current = versionName(context);
+            List<Release> list = new ArrayList<>();
             for (int i = 0; i < releases.length(); i++) {
                 JSONObject r = releases.getJSONObject(i);
                 if (r.optBoolean("draft")) continue;
-                String version = r.getString("tag_name").replaceFirst("^v", "");
                 JSONArray assets = r.getJSONArray("assets");
                 for (int j = 0; j < assets.length(); j++) {
                     JSONObject a = assets.getJSONObject(j);
                     if (!a.getString("name").endsWith(".apk")) continue;
-                    if (compare(version, current) <= 0) return null;
-                    return new Release(version, a.getString("browser_download_url"), a.optLong("size", -1));
+                    String date = r.optString("published_at", "");
+                    list.add(new Release(r.getString("tag_name").replaceFirst("^v", ""),
+                            r.optBoolean("prerelease"), date.length() >= 10 ? date.substring(0, 10) : date,
+                            a.getString("browser_download_url"), a.optLong("size", -1)));
+                    break;
                 }
             }
-            return null;
+            list.sort((x, y) -> compare(y.version, x.version));
+            return list;
         } catch (org.json.JSONException e) {
             throw new IOException("Unexpected reply from GitHub");
         } finally {
             c.disconnect();
         }
+    }
+
+    /** The newest release that's newer than this install, or null. */
+    public static Release newest(Context context, List<Release> releases, boolean includePrereleases) {
+        String current = versionName(context);
+        for (Release r : releases) {
+            if (r.prerelease && !includePrereleases) continue;
+            return compare(r.version, current) > 0 ? r : null;
+        }
+        return null;
     }
 
     /**

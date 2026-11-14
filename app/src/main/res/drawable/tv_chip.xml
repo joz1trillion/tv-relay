@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quiet until the remote lands on it, then the same focus look as the buttons. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_focused="true">
+        <shape android:shape="rectangle">
+            <corners android:radius="10dp" />
+            <solid android:color="#3D8BFF" />
+            <stroke android:width="2dp" android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

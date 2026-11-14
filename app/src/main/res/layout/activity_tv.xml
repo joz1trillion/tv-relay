@@ -48,32 +48,9 @@
                 android:textStyle="bold" />
 
             <Button
-                android:id="@+id/back"
+                android:id="@+id/kodi"
                 style="@style/TvButton"
-                android:text="Back to my show" />
-
-            <!-- Rarely used, so they share a row. -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipChildren="false"
-                android:clipToPadding="false"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/kodi"
-                    style="@style/TvButton"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:text="Kodi login" />
-
-                <Button
-                    android:id="@+id/update"
-                    style="@style/TvButton"
-                    android:layout_width="0dp"
-                    android:layout_marginLeft="16dp"
-                    android:layout_weight="1" />
-            </LinearLayout>
+                android:text="Kodi login" />
         </LinearLayout>
 
         <LinearLayout
@@ -123,12 +100,18 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Version, with a dot when an update is out. Focusable: OK opens the update dialog. -->
     <TextView
         android:id="@+id/version"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="16dp"
-        android:textColor="#6E6E76"
+        android:layout_margin="8dp"
+        android:background="@drawable/tv_chip"
+        android:paddingLeft="12dp"
+        android:paddingTop="6dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="6dp"
+        android:textColor="@color/tv_chip_text"
         android:textSize="16sp" />
 </FrameLayout>

@@ -11,13 +11,16 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
 import android.text.Editable;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
 import android.text.TextWatcher;
+import android.text.style.ForegroundColorSpan;
 import android.util.Rational;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -33,12 +36,14 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
-import android.widget.Toast;
 
 /** Phone screen: Listen (controls, stats, graph), Settings, and Kodi sync tabs. */
 public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1;
     private static final int ACCENT = Color.rgb(0x3D, 0x8B, 0xFF);
+    private static final int GOOD = Color.rgb(0x34, 0xC7, 0x59);
+    private static final int WARN = Color.rgb(0xFF, 0x9F, 0x0A);
+    static final String KODI_GUIDE = "https://github.com/joz1trillion/tv-relay/blob/main/docs/kodi.md";
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView statusView;
@@ -51,6 +56,7 @@ public class MainActivity extends Activity {
     private View[] pages;
     private Settings settings;
     private boolean inPip;
+    private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
         @Override
@@ -59,7 +65,7 @@ public class MainActivity extends Activity {
                 pipView.setText(describePip());
             } else {
                 statusView.setText(describe());
-                kodiStatusView.setText(describeKodi());
+                showKodiStatus();
                 graph.invalidate();
             }
             // Android only keeps Wi-Fi in low-latency mode while the screen is on and we're in front.
@@ -81,8 +87,8 @@ public class MainActivity extends Activity {
             return;
         }
         setContentView(R.layout.activity_main);
-        ((TextView) findViewById(R.id.version)).setText("v" + Updater.versionName(this));
         settings = Settings.load(this);
+        updates = new UpdateUi(this, findViewById(R.id.version));
         statusView = findViewById(R.id.status);
         graph = findViewById(R.id.graph);
         pipView = findViewById(R.id.pipView);
@@ -101,8 +107,12 @@ public class MainActivity extends Activity {
         buildSettings(findViewById(R.id.settingsList));
         buildKodi(findViewById(R.id.kodiList));
         buildConnectDirectly(findViewById(R.id.listenExtras));
-        tabs[2].setVisibility(settings.kodiUnlocked ? View.VISIBLE : View.GONE);
-        graph.setOnClickListener(v -> onGraphTapped());
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (updates != null) updates.destroy();
+        super.onDestroy();
     }
 
     private void showTab(int index) {
@@ -178,51 +188,17 @@ public class MainActivity extends Activity {
         body.addView(host);
     }
 
-    // ---- Kodi easter egg ----
-
-    private static final int UNLOCK_TAPS = 7;
-    private int graphTaps;
-    private long lastGraphTapMs;
-    private Toast tapToast;
-
-    /** Like Android's "You are now a developer": Kodi sync is untested, so it stays hidden until asked for. */
-    private void onGraphTapped() {
-        if (settings.kodiUnlocked) {
-            toast("You're already a Kodi user.");
-            return;
-        }
-        long now = SystemClock.elapsedRealtime();
-        if (now - lastGraphTapMs > 2000) graphTaps = 0;
-        lastGraphTapMs = now;
-        graphTaps++;
-        int left = UNLOCK_TAPS - graphTaps;
-        if (left <= 0) {
-            settings.kodiUnlocked = true;
-            settings.save(this);
-            tabs[2].setVisibility(View.VISIBLE);
-            toast("You are now a Kodi user!");
-        } else if (graphTaps >= 2) {
-            toast("You are " + left + (left == 1 ? " tap" : " taps") + " away from being a Kodi user.");
-        }
-    }
-
-    private void toast(String text) {
-        if (tapToast != null) tapToast.cancel();
-        tapToast = Toast.makeText(this, text, Toast.LENGTH_SHORT);
-        tapToast.show();
-    }
-
     // ---- Kodi tab ----
 
     private void buildKodi(LinearLayout list) {
-        TextView intro = text(list, "Makes Kodi on the TV play its audio slightly early, so the sound on this "
-                + "phone lines up with the picture. Needs Kodi 21+ on the TV, \"Allow remote control via HTTP\" "
-                + "turned on in Kodi, and the Kodi login entered in the TV app.", 15);
-        intro.setAlpha(0.8f);
-
-        kodiStatusView = text(list, "", 15);
+        kodiStatusView = text(list, "", 17);
         kodiStatusView.setTypeface(Typeface.DEFAULT_BOLD);
-        kodiStatusView.setPadding(0, dp(12), 0, 0);
+
+        TextView intro = text(list, "If you watch in Kodi on the TV, TV Relay can make Kodi play its audio "
+                + "slightly early, so the sound on this phone lines up with the picture.", 15);
+        intro.setAlpha(0.8f);
+        intro.setPadding(0, dp(8), 0, 0);
+        buildKodiSetup(list);
 
         choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
             settings.kodiMode = v;
@@ -262,6 +238,56 @@ public class MainActivity extends Activity {
             settings.kodiFlip = v;
             ReceiverService.kodiFlip = v;
         }, false);
+    }
+
+    /** Short setup steps, open until Kodi has been reached once. The full guide is on GitHub. */
+    private void buildKodiSetup(LinearLayout list) {
+        TextView toggle = text(list, "", 16);
+        toggle.setPadding(0, dp(12), 0, dp(4));
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setVisibility(settings.kodiSeen ? View.GONE : View.VISIBLE);
+        list.addView(body);
+        Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + "How to set it up");
+        label.run();
+        toggle.setOnClickListener(v -> {
+            body.setVisibility(body.getVisibility() == View.VISIBLE ? View.GONE : View.VISIBLE);
+            label.run();
+        });
+
+        TextView steps = text(body, "1. On the TV, install Kodi (version 21 or newer) from the Play Store.\n"
+                + "2. In Kodi: Settings → Services → Control → turn on \"Allow remote control via HTTP\" "
+                + "and set a password.\n"
+                + "3. In TV Relay on the TV: Kodi login → enter that password. It checks the connection for you.\n"
+                + "4. Here: tap Listen, set Mode to Automatic, and play something in Kodi.", 14);
+        steps.setLineSpacing(dp(4), 1f);
+        TextView link = text(body, "Full guide, including Plex in Kodi →", 14);
+        link.setTextColor(ACCENT);
+        link.setPadding(0, dp(10), 0, dp(10));
+        link.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(KODI_GUIDE)));
+            } catch (Exception ignored) {
+                // no browser
+            }
+        });
+    }
+
+    /** "● Connected to Kodi" with a green or orange dot; remembers the first success. */
+    private void showKodiStatus() {
+        int state = ReceiverService.running ? ReceiverService.kodiState : -1;
+        boolean connected = state == Protocol.KODI_STATE_IDLE || state == Protocol.KODI_STATE_APPLIED
+                || state == Protocol.KODI_STATE_READY;
+        boolean problem = state == Protocol.KODI_STATE_UNREACHABLE || state == Protocol.KODI_STATE_AUTH;
+        SpannableStringBuilder sb = new SpannableStringBuilder("● ");
+        sb.setSpan(new ForegroundColorSpan(connected ? GOOD : problem ? WARN : Color.GRAY), 0, 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.append(describeKodi());
+        kodiStatusView.setText(sb);
+        if (connected && !settings.kodiSeen) {
+            settings.kodiSeen = true;
+            settings.save(this);
+        }
     }
 
     private Button nudge(String text, int delta) {
@@ -473,14 +499,16 @@ public class MainActivity extends Activity {
     }
 
     private static String describeKodi() {
-        if (!ReceiverService.running) return "Start listening to connect to Kodi on the TV.";
+        if (!ReceiverService.running) return "Tap Listen to check the connection to Kodi";
         switch (ReceiverService.kodiState) {
-            case Protocol.KODI_STATE_IDLE: return "Kodi on TV: connected, nothing playing";
+            case Protocol.KODI_STATE_READY: return "Connected to Kodi · lip sync off";
+            case Protocol.KODI_STATE_IDLE: return "Connected to Kodi · nothing playing";
             case Protocol.KODI_STATE_APPLIED:
-                return "Kodi on TV: audio delay " + ReceiverService.kodiAppliedMs + " ms";
-            case Protocol.KODI_STATE_UNREACHABLE: return "Kodi on TV: not reachable (enable HTTP remote control)";
-            case Protocol.KODI_STATE_AUTH: return "Kodi on TV: wrong username/password (set it in the TV app)";
-            default: return "Kodi sync off";
+                return "Connected to Kodi · audio delay " + ReceiverService.kodiAppliedMs + " ms";
+            case Protocol.KODI_STATE_UNREACHABLE: return "Can't reach Kodi: is it open, with HTTP remote control on?";
+            case Protocol.KODI_STATE_AUTH: return "Kodi login is wrong: fix it under Kodi login on the TV";
+            case Protocol.KODI_STATE_MISSING: return "Kodi isn't installed on the TV";
+            default: return "Waiting for the TV…";
         }
     }
 
@@ -498,7 +526,7 @@ public class MainActivity extends Activity {
                     .append("  saved by copy ").append(ReceiverService.recovered)
                     .append("\noutput: ").append(ReceiverService.outputInfo)
                     .append(", ").append(ReceiverService.outputUnderruns).append(" glitches");
-            if (settings.kodiUnlocked) sb.append("\n").append(describeKodi());
+            if (settings.kodiMode != Protocol.KODI_OFF) sb.append("\n").append(describeKodi());
         }
         return sb.toString();
     }

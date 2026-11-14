@@ -3,14 +3,9 @@ package com.joz.tvrelay;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.media.projection.MediaProjectionManager;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -21,7 +16,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,29 +31,7 @@ public class TvActivity extends Activity {
     private TextView detail;
     private TextView kodiStatus;
     private TextView hint;
-    private Button update;
-
-    /** Newest release on GitHub when it's newer than this install. */
-    private Updater.Release available;
-    private boolean updating;
-
-    private final BroadcastReceiver installStatus = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
-            if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
-                if (confirm != null) startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-                return;
-            }
-            updating = false;
-            renderUpdate();
-            if (status != PackageInstaller.STATUS_SUCCESS && status != PackageInstaller.STATUS_FAILURE_ABORTED) {
-                String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-                showMessage("Update failed", msg != null ? msg : "Android didn't say why.");
-            }
-        }
-    };
+    private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
         @Override
@@ -78,8 +50,6 @@ public class TvActivity extends Activity {
         detail = findViewById(R.id.detail);
         kodiStatus = findViewById(R.id.kodiStatus);
         hint = findViewById(R.id.hint);
-        update = findViewById(R.id.update);
-        ((TextView) findViewById(R.id.version)).setText("v" + Updater.versionName(this));
 
         toggle.setOnClickListener(v -> {
             if (SenderService.running) {
@@ -88,26 +58,21 @@ public class TvActivity extends Activity {
                 requestCapture();
             }
         });
-        findViewById(R.id.back).setOnClickListener(v -> moveTaskToBack(true));
         findViewById(R.id.kodi).setOnClickListener(v -> showKodiLogin());
-        update.setOnClickListener(v -> onUpdatePressed());
 
-        for (int id : new int[]{R.id.toggle, R.id.back, R.id.kodi, R.id.update}) {
+        for (int id : new int[]{R.id.toggle, R.id.kodi}) {
             findViewById(id).setOnFocusChangeListener((v, focused) ->
                     v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f)
                             .setDuration(120).start());
         }
         toggle.requestFocus();
 
-        registerReceiver(installStatus, new IntentFilter(Updater.ACTION_INSTALL_STATUS),
-                Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
-        renderUpdate();
-        checkForUpdate(false);
+        updates = new UpdateUi(this, findViewById(R.id.version));
     }
 
     @Override
     protected void onDestroy() {
-        unregisterReceiver(installStatus);
+        updates.destroy();
         super.onDestroy();
     }
 
@@ -142,97 +107,14 @@ public class TvActivity extends Activity {
             detail.setText(SenderService.format);
         }
         kodiStatus.setText(on ? KodiSync.status : "");
-        kodiStatus.setVisibility(on && KodiSync.state != Protocol.KODI_STATE_OFF ? View.VISIBLE : View.GONE);
+        // Not worth a line on the TV for people who don't use Kodi.
+        int k = KodiSync.state;
+        boolean quiet = k == Protocol.KODI_STATE_OFF || k == Protocol.KODI_STATE_MISSING
+                || (k == Protocol.KODI_STATE_UNREACHABLE && !KodiSync.syncing);
+        kodiStatus.setVisibility(on && !quiet ? View.VISIBLE : View.GONE);
         hint.setText(on
-                ? "Streaming keeps going in the background. Press Back to my show (or Home) to return to what you were watching."
+                ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
-    }
-
-    private void renderUpdate() {
-        if (!updating) {
-            update.setText(available != null ? "Get v" + available.version : "Updates");
-        }
-    }
-
-    private void onUpdatePressed() {
-        if (updating) return;
-        if (available == null) {
-            checkForUpdate(true);
-        } else if (!getPackageManager().canRequestPackageInstalls()) {
-            askInstallPermission();
-        } else {
-            install(available);
-        }
-    }
-
-    /** Quietly on launch; with feedback when the button was pressed. */
-    private void checkForUpdate(boolean userAsked) {
-        updating = true;
-        if (userAsked) update.setText("Checking…");
-        new Thread(() -> {
-            Updater.Release release = null;
-            String error = null;
-            try {
-                release = Updater.checkForUpdate(this);
-            } catch (Exception e) {
-                error = e.getMessage();
-            }
-            Updater.Release found = release;
-            String failure = error;
-            runOnUiThread(() -> {
-                updating = false;
-                available = found;
-                renderUpdate();
-                if (!userAsked || isFinishing()) return;
-                if (failure != null) {
-                    showMessage("Couldn't check for updates", failure);
-                } else if (found == null) {
-                    Toast.makeText(this, "You're on the latest version (v" + Updater.versionName(this) + ")",
-                            Toast.LENGTH_LONG).show();
-                }
-            });
-        }, "update-check").start();
-    }
-
-    private void askInstallPermission() {
-        new AlertDialog.Builder(this)
-                .setTitle("Allow updates")
-                .setMessage("Android needs your OK, once, for TV Relay to install its own updates. "
-                        + "On the next screen, turn on TV Relay, then come back and press Get again.")
-                .setPositiveButton("Open settings", (d, w) -> {
-                    try {
-                        startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                                Uri.parse("package:" + getPackageName())));
-                    } catch (Exception e) {
-                        showMessage("Allow updates", "This TV has no shortcut to that setting. Look in "
-                                + "Settings > Apps > Special app access > Install unknown apps, and turn on TV Relay.");
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void install(Updater.Release release) {
-        updating = true;
-        update.setText("Updating…");
-        new Thread(() -> {
-            try {
-                Updater.downloadAndInstall(this, release, percent ->
-                        runOnUiThread(() -> update.setText(percent + "%")));
-                runOnUiThread(() -> update.setText("Installing…"));
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    updating = false;
-                    renderUpdate();
-                    showMessage("Update failed", String.valueOf(e.getMessage()));
-                });
-            }
-        }, "update-install").start();
-    }
-
-    private void showMessage(String title, String message) {
-        if (isFinishing()) return;
-        new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("OK", null).show();
     }
 
     private void requestCapture() {
@@ -303,10 +185,34 @@ public class TvActivity extends Activity {
                     settings.kodiUser = user.getText().toString().trim();
                     settings.kodiPass = pass.getText().toString();
                     settings.save(this);
+                    testKodiLogin();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
         pass.requestFocus();
+    }
+
+    /** Saving the login checks it straight away, so mistakes show up here and not mid-movie. */
+    private void testKodiLogin() {
+        AlertDialog checking = new AlertDialog.Builder(this)
+                .setTitle("Kodi login")
+                .setMessage("Checking the connection to Kodi…")
+                .setCancelable(false)
+                .show();
+        new Thread(() -> {
+            String result = KodiSync.testLogin(this);
+            runOnUiThread(() -> {
+                checking.dismiss();
+                if (isFinishing()) return;
+                boolean ok = result.startsWith("Connected");
+                AlertDialog.Builder b = new AlertDialog.Builder(this)
+                        .setTitle(ok ? "Kodi connected" : "Kodi not connected")
+                        .setMessage(result)
+                        .setPositiveButton("OK", null);
+                if (!ok) b.setNegativeButton("Edit login", (d, w) -> showKodiLogin());
+                b.show();
+            });
+        }, "kodi-test").start();
     }
 
     private EditText field(LinearLayout form, String label, String value, int inputType) {
@@ -315,9 +221,9 @@ public class TvActivity extends Activity {
         l.setTextSize(16);
         form.addView(l);
         EditText e = new EditText(this);
-        e.setText(value);
+        e.setSingleLine(true); // before setInputType: it would replace the password masking
         e.setInputType(inputType);
-        e.setSingleLine(true);
+        e.setText(value);
         form.addView(e);
         return e;
     }

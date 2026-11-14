@@ -29,6 +29,7 @@ final class KodiSync {
     static volatile String status = "Kodi sync off";
     static volatile int state = Protocol.KODI_STATE_OFF;
     static volatile int appliedMs;
+    static volatile boolean syncing;  // the phone has a lip sync mode on
 
     private final Context context;
     private int port;
@@ -85,8 +86,9 @@ final class KodiSync {
             } catch (Exception e) {
                 Log.d(TAG, "kodi unreachable", e);
                 lastItem = null;
-                setState(Protocol.KODI_STATE_UNREACHABLE,
-                        "Kodi: not reachable (turn on Settings > Services > Control > Allow remote control via HTTP)");
+                setState(Protocol.KODI_STATE_UNREACHABLE, syncing
+                        ? "Kodi: not reachable (turn on Settings > Services > Control > Allow remote control via HTTP)"
+                        : "Kodi isn't open");
             }
             try {
                 Thread.sleep(1000);
@@ -102,9 +104,17 @@ final class KodiSync {
         loadLogin();
         boolean phoneActive = SystemClock.elapsedRealtime() - lastUpdateMs < 5000;
         int m = phoneActive ? mode : Protocol.KODI_OFF;
+        syncing = m != Protocol.KODI_OFF;
         if (m == Protocol.KODI_OFF) {
             resetIfChanged();
-            setState(Protocol.KODI_STATE_OFF, "Kodi sync off");
+            if (phoneActive && !installed(context)) {
+                setState(Protocol.KODI_STATE_MISSING, "Kodi isn't installed");
+            } else if (phoneActive) {
+                kodiVersion(); // still check the login, so the phone can show it's connected
+                setState(Protocol.KODI_STATE_READY, "Kodi: connected, lip sync off");
+            } else {
+                setState(Protocol.KODI_STATE_OFF, "Kodi sync off");
+            }
             return;
         }
 
@@ -147,6 +157,42 @@ final class KodiSync {
     private static void setState(int s, String text) {
         state = s;
         status = text;
+    }
+
+    /** Checks the saved login against Kodi right away, for the TV's Kodi login dialog. Blocking. */
+    static String testLogin(Context context) {
+        KodiSync k = new KodiSync(context);
+        k.loadLogin();
+        if (!installed(context)) {
+            return "Kodi isn't installed on this TV. Get it from the Play Store (Kodi 21 or newer).";
+        }
+        try {
+            int[] v = k.kodiVersion();
+            String name = "Kodi " + v[0] + "." + v[1];
+            return v[0] >= 21 ? "Connected to " + name + "."
+                    : "Connected to " + name + ", but lip sync needs Kodi 21 or newer. Update Kodi from the Play Store.";
+        } catch (AuthException e) {
+            return "Kodi says the username or password is wrong.";
+        } catch (Exception e) {
+            return "Couldn't reach Kodi on port " + k.port + ". Open Kodi (it can stay in the background) and "
+                    + "check Settings > Services > Control > Allow remote control via HTTP is on.";
+        }
+    }
+
+    private static boolean installed(Context context) {
+        try {
+            context.getPackageManager().getPackageInfo("org.xbmc.kodi", 0);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** {major, minor}; also proves the login works. */
+    private int[] kodiVersion() throws Exception {
+        JSONObject params = new JSONObject().put("properties", new JSONArray().put("version"));
+        JSONObject v = rpc("Application.GetProperties", params).getJSONObject("result").getJSONObject("version");
+        return new int[]{v.optInt("major"), v.optInt("minor")};
     }
 
     private int videoPlayer() throws Exception {

@@ -40,6 +40,8 @@ final class Protocol {
     static final int KODI_STATE_APPLIED = 2;
     static final int KODI_STATE_UNREACHABLE = 3;
     static final int KODI_STATE_AUTH = 4;
+    static final int KODI_STATE_READY = 5;       // login works, lip sync turned off
+    static final int KODI_STATE_MISSING = 6;     // Kodi isn't installed on the TV
 
     static final int CODEC_PCM = 0;
     static final int CODEC_OPUS = 1;
