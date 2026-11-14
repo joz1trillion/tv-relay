@@ -24,17 +24,19 @@ import java.nio.charset.StandardCharsets;
 final class KodiSync {
     private static final String TAG = "TvRelayKodi";
     private static final double STEP = 0.025;   // Kodi only accepts multiples of 25 ms
-    private static final double AUTO_HYSTERESIS = 0.049; // each change blips Kodi's audio
 
     static volatile String status = "Kodi sync off";
     static volatile int state = Protocol.KODI_STATE_OFF;
     static volatile int appliedMs;
+    static volatile int pendingMs = Integer.MIN_VALUE; // what the next sync would set, if different
+    private static volatile boolean syncRequested;
 
     private final Context context;
     private volatile String host;  // the TV's IP, once the receiver knows it
     private String kodiHost;       // set in the login when Kodi isn't on that TV
     private int port;
     private String auth;
+    private boolean syncAtPause;
     private volatile int mode;
     private volatile int adjustMs;
     private volatile int latencyMs;
@@ -45,6 +47,9 @@ final class KodiSync {
 
     // sync thread only
     private double applied = Double.NaN;
+    private int appliedAdjust;
+    private boolean appliedFlip;
+    private int appliedMode;
     private String lastItem;
 
     KodiSync(Context context) {
@@ -56,8 +61,14 @@ final class KodiSync {
         Settings s = Settings.load(context);
         kodiHost = s.kodiHost.isEmpty() ? null : s.kodiHost;
         port = s.kodiPort;
+        syncAtPause = s.kodiSyncAtPause;
         auth = s.kodiUser.isEmpty() ? null : "Basic " + Base64.encodeToString(
                 (s.kodiUser + ":" + s.kodiPass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
+    }
+
+    /** The phone's Sync now button: apply the current delay on the next tick, mid-video or not. */
+    static void requestSync() {
+        syncRequested = true;
     }
 
     void setHost(String host) {
@@ -127,6 +138,7 @@ final class KodiSync {
         if (player < 0) {
             lastItem = null;
             applied = Double.NaN;
+            pendingMs = Integer.MIN_VALUE;
             setState(Protocol.KODI_STATE_IDLE, "Kodi: connected, nothing playing");
             return;
         }
@@ -137,13 +149,25 @@ final class KodiSync {
         // Relay audio arrives late, so Kodi must play audio early: a negative Kodi audio delay.
         double target = Math.round(delayMs / 1000.0 / STEP) * STEP * (flip ? 1 : -1);
         target = Math.max(-10, Math.min(10, target));
-        double threshold = m == Protocol.KODI_AUTO ? AUTO_HYSTERESIS : 0.001;
-        if (newItem || Double.isNaN(applied) || Math.abs(target - applied) >= threshold) {
+        // Every change makes Kodi catch the picture up (it skips frames for a moment), so the
+        // measured delay is only followed at the start of a video, while paused, or on Sync now.
+        // The user's own adjustments apply straight away: they asked for them.
+        boolean differs = Double.isNaN(applied) || Math.abs(target - applied) >= STEP / 2;
+        boolean userChange = adjustMs != appliedAdjust || flip != appliedFlip || m != appliedMode;
+        boolean syncNow = syncRequested;
+        syncRequested = false;
+        if (newItem || Double.isNaN(applied) || (differs && (userChange || syncNow
+                || (syncAtPause && isPaused(player))))) {
             setDelay(player, target);
             applied = target;
         }
+        appliedAdjust = adjustMs;
+        appliedFlip = flip;
+        appliedMode = m;
         lastItem = item;
         appliedMs = (int) Math.round(applied * 1000);
+        int targetMs = (int) Math.round(target * 1000);
+        pendingMs = targetMs != appliedMs ? targetMs : Integer.MIN_VALUE;
         setState(Protocol.KODI_STATE_APPLIED, String.format(java.util.Locale.US,
                 "Kodi: audio delay %+.3f s (%s)", applied, m == Protocol.KODI_AUTO ? "auto" : "manual"));
     }
@@ -201,6 +225,12 @@ final class KodiSync {
             if ("video".equals(p.optString("type"))) return p.getInt("playerid");
         }
         return -1;
+    }
+
+    private boolean isPaused(int player) throws Exception {
+        JSONObject params = new JSONObject().put("playerid", player)
+                .put("properties", new JSONArray().put("speed"));
+        return rpc("Player.GetProperties", params).getJSONObject("result").optInt("speed", 1) == 0;
     }
 
     private String currentItem(int player) throws Exception {

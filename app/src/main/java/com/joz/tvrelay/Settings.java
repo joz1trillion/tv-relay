@@ -47,6 +47,7 @@ final class Settings {
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
+    boolean kodiSyncAtPause = true; // follow the measured delay while paused, not just at a video's start
     boolean kodiOnListen;  // also show the Kodi mode and adjustment on the Listen tab
     // phone side: Kodi's HTTP remote control login
     String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
@@ -85,6 +86,7 @@ final class Settings {
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
         s.kodiOnListen = p.getBoolean("kodiOnListen", false);
+        s.kodiSyncAtPause = p.getBoolean("kodiSyncAtPause", true);
         s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
@@ -117,6 +119,7 @@ final class Settings {
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
                 .putBoolean("kodiOnListen", kodiOnListen)
+                .putBoolean("kodiSyncAtPause", kodiSyncAtPause)
                 .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)

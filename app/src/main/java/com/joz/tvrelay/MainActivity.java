@@ -353,6 +353,8 @@ public class MainActivity extends Activity {
             settings.kodiMode = v;
             ReceiverService.kodiMode = v;
         }, false));
+        toggle(list, "Sync when paused", R.string.info_kodi_sync_at_pause, settings.kodiSyncAtPause,
+                v -> settings.kodiSyncAtPause = v, false);
 
         label(list, "Adjustment", R.string.info_kodi_adjust);
         TextView value = text(list, "", 28);
@@ -363,12 +365,27 @@ public class MainActivity extends Activity {
         slider.setMax(steps);
         slider.setPadding(dp(16), dp(12), dp(16), dp(12));
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            boolean dragging;
+
+            // While dragging only the number moves; Kodi gets the value when you let go, so it
+            // catches up once instead of on every step. Keys (no drag) apply each press.
             @Override
             public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                if (fromUser) setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS);
+                if (!fromUser) return;
+                int ms = Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS;
+                if (dragging) previewKodiAdjust(ms); else setKodiAdjust(ms);
             }
-            @Override public void onStartTrackingTouch(SeekBar bar) {}
-            @Override public void onStopTrackingTouch(SeekBar bar) {}
+
+            @Override
+            public void onStartTrackingTouch(SeekBar bar) {
+                dragging = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar bar) {
+                dragging = false;
+                setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + bar.getProgress() * Settings.KODI_ADJUST_STEP_MS);
+            }
         });
         list.addView(slider);
         kodiSliders.add(slider);
@@ -382,7 +399,22 @@ public class MainActivity extends Activity {
         TextView scale = text(list, "← sound later          sound earlier →", 13);
         scale.setGravity(Gravity.CENTER);
         scale.setAlpha(0.6f);
+        Button sync = new Button(this);
+        sync.setText("Sync now");
+        sync.setAllCaps(false);
+        sync.setOnClickListener(v -> syncKodiNow());
+        list.addView(sync);
         showKodiAdjust();
+    }
+
+    /** Apply the measured delay to Kodi right away, mid-video; Kodi catches the picture up once. */
+    private void syncKodiNow() {
+        if (!ReceiverService.running || settings.kodiMode == Protocol.KODI_OFF) {
+            Toast.makeText(this, "Turn on a lip sync mode and tap Listen first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        KodiSync.requestSync();
+        Toast.makeText(this, "Syncing Kodi", Toast.LENGTH_SHORT).show();
     }
 
     /** Two-row version of the Kodi controls for the Listen tab: mode and value, then − slider +. */
@@ -421,6 +453,11 @@ public class MainActivity extends Activity {
         value.setOnClickListener(v -> setKodiAdjust(0));
         top.addView(value);
         kodiAdjustViews.add(value);
+        Button sync = new Button(this, null, android.R.attr.borderlessButtonStyle);
+        sync.setText("Sync");
+        sync.setAllCaps(false);
+        sync.setOnClickListener(v -> syncKodiNow());
+        top.addView(sync);
         list.addView(top);
 
         LinearLayout bottom = new LinearLayout(this);
@@ -429,12 +466,27 @@ public class MainActivity extends Activity {
         SeekBar slider = new SeekBar(this);
         slider.setMax((Settings.KODI_ADJUST_MAX_MS - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS);
         slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            boolean dragging;
+
+            // While dragging only the number moves; Kodi gets the value when you let go, so it
+            // catches up once instead of on every step. Keys (no drag) apply each press.
             @Override
             public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
-                if (fromUser) setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS);
+                if (!fromUser) return;
+                int ms = Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS;
+                if (dragging) previewKodiAdjust(ms); else setKodiAdjust(ms);
             }
-            @Override public void onStartTrackingTouch(SeekBar bar) {}
-            @Override public void onStopTrackingTouch(SeekBar bar) {}
+
+            @Override
+            public void onStartTrackingTouch(SeekBar bar) {
+                dragging = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar bar) {
+                dragging = false;
+                setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + bar.getProgress() * Settings.KODI_ADJUST_STEP_MS);
+            }
         });
         bottom.addView(slider, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
         kodiSliders.add(slider);
@@ -589,6 +641,10 @@ public class MainActivity extends Activity {
         ReceiverService.kodiAdjustMs = ms; // applied within a second, no restart
         settings.save(this);
         showKodiAdjust();
+    }
+
+    private void previewKodiAdjust(int ms) {
+        for (TextView t : kodiAdjustViews) t.setText((ms > 0 ? "+" : "") + ms + " ms");
     }
 
     private void showKodiAdjust() {
@@ -964,7 +1020,9 @@ public class MainActivity extends Activity {
             case Protocol.KODI_STATE_READY: return "Lip sync is off: pick a mode below";
             case Protocol.KODI_STATE_IDLE: return "Nothing playing in Kodi";
             case Protocol.KODI_STATE_APPLIED:
-                return "Kodi audio delay " + KodiSync.appliedMs + " ms";
+                return "Kodi audio delay " + KodiSync.appliedMs + " ms"
+                        + (KodiSync.pendingMs != Integer.MIN_VALUE
+                        ? " · " + KodiSync.pendingMs + " ms at the next pause or Sync now" : "");
             case Protocol.KODI_STATE_UNREACHABLE: return "Can't reach Kodi: is it open, with HTTP remote control on?";
             case Protocol.KODI_STATE_AUTH: return "Kodi says the username or password is wrong";
             default: return "Waiting for the TV…";

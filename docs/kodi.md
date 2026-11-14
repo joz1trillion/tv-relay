@@ -47,6 +47,16 @@ Kodi has to be open on the TV for TV Relay to reach it. It's fine to leave it ru
 
 If moving the slider right makes the sound *later* instead of earlier, turn on **Flip direction**.
 
+### When the delay changes
+
+Every time Kodi's audio delay changes mid-video, Kodi catches the picture up by skipping frames for a moment. So TV Relay changes it as little as possible:
+
+- **Automatic** follows the measured delay when a video starts, and (with **Sync when paused** on, the default) whenever you pause. In between, the phone's buffer absorbs small Wi-Fi changes.
+- **Sync now** (on the Kodi sync tab, and next to the Kodi controls on the Listen tab) applies the current delay right away.
+- Your own changes apply straight away. The slider applies when you lift your finger, not while dragging.
+
+The Kodi sync card shows a pending change, e.g. *Kodi audio delay −75 ms · −100 ms at the next pause or Sync now*.
+
 Turn on **Show on Listen tab** to have Mode and Adjustment above the latency graph as well, so you can fine-tune without switching tabs.
 
 TV Relay on the TV shows a green **Kodi server found** under Start streaming when Kodi's remote control is reachable on port 8080.
