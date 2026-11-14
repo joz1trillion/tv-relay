@@ -10,9 +10,12 @@ import android.content.pm.PackageInstaller;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
+import android.os.SystemClock;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
+import android.view.Gravity;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -30,6 +33,7 @@ final class UpdateUi {
     private final TextView label;
     private List<Updater.Release> releases;  // null until GitHub answered
     private Updater.Release newest;
+    private long checkedAt;                  // elapsedRealtime of the last good check
     private boolean installing;
     private AlertDialog progress;
 
@@ -64,7 +68,7 @@ final class UpdateUi {
         activity.registerReceiver(installStatus, new IntentFilter(Updater.ACTION_INSTALL_STATUS),
                 Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         render();
-        fetch(null);
+        fetch(null, null);
     }
 
     void destroy() {
@@ -89,8 +93,11 @@ final class UpdateUi {
         label.setContentDescription(sb + ". Updates");
     }
 
-    /** Loads the release list in the background, then runs {@code then} (on the UI thread) if given. */
-    private void fetch(Runnable then) {
+    /**
+     * Loads the release list in the background, then runs {@code then} (on the UI thread) if given,
+     * or reports the error and runs {@code failed}.
+     */
+    private void fetch(Runnable then, Runnable failed) {
         new Thread(() -> {
             List<Updater.Release> list = null;
             String error = null;
@@ -105,12 +112,14 @@ final class UpdateUi {
                 if (activity.isDestroyed()) return;
                 if (found != null) {
                     releases = found;
+                    checkedAt = SystemClock.elapsedRealtime();
                     for (Updater.Release r : found) Settings.setPrerelease(activity, r.version, r.prerelease);
                     newest = Updater.newest(activity, found, settings().updatePrereleases);
                     render();
                 }
                 if (then == null) return;
                 if (failure != null) {
+                    if (failed != null) failed.run();
                     message("Couldn't reach GitHub", failure);
                 } else {
                     then.run();
@@ -122,7 +131,7 @@ final class UpdateUi {
     private void openDialog() {
         if (installing) return;
         if (releases == null) {
-            fetch(this::openDialog);
+            fetch(this::openDialog, null);
             return;
         }
         Settings s = settings();
@@ -135,7 +144,7 @@ final class UpdateUi {
         text.setTextSize(16);
         text.setText("You have v" + current + (Settings.isPrerelease(activity, current) ? " (pre-release)" : "") + ".\n"
                 + (newest != null ? "v" + newest.version + (newest.prerelease ? " (pre-release)" : "")
-                + " is available." : "That's the newest version."));
+                + " is available." : "That's the newest version.") + "\nChecked " + checkedAgo() + ".");
         box.addView(text);
         Switch pre = new Switch(activity);
         pre.setText("Include pre-releases");
@@ -149,12 +158,24 @@ final class UpdateUi {
         box.addView(preHelp);
 
         AlertDialog.Builder b = new AlertDialog.Builder(activity)
-                .setTitle("TV Relay updates")
+                .setCustomTitle(title())
                 .setView(box)
                 .setNeutralButton("Other versions", (d, w) -> pickVersion())
                 .setNegativeButton("Close", null);
         if (newest != null) b.setPositiveButton("Install v" + newest.version, (d, w) -> install(newest));
         AlertDialog dialog = b.show();
+        Button check = dialog.findViewById(R.id.checkNow);
+        check.setOnClickListener(v -> {
+            check.setText("Checking…");
+            check.setEnabled(false);
+            fetch(() -> {
+                dialog.dismiss();
+                openDialog();
+            }, () -> {
+                check.setText("Check now");
+                check.setEnabled(true);
+            });
+        });
         pre.setOnCheckedChangeListener((v, on) -> {
             Settings changed = settings();
             changed.updatePrereleases = on;
@@ -164,6 +185,29 @@ final class UpdateUi {
             dialog.dismiss();
             openDialog();
         });
+    }
+
+    /** The dialog title with a "Check now" button in its top-right corner. */
+    private LinearLayout title() {
+        LinearLayout row = new LinearLayout(activity);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(24), dp(16), dp(12), 0);
+        TextView t = new TextView(activity);
+        t.setText("TV Relay updates");
+        t.setTextAppearance(android.R.style.TextAppearance_DeviceDefault_DialogWindowTitle);
+        row.addView(t, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        Button check = new Button(activity, null, android.R.attr.borderlessButtonStyle);
+        check.setId(R.id.checkNow);
+        check.setText("Check now");
+        check.setAllCaps(false);
+        row.addView(check);
+        return row;
+    }
+
+    private String checkedAgo() {
+        long min = (SystemClock.elapsedRealtime() - checkedAt) / 60_000;
+        return min < 1 ? "just now" : min == 1 ? "1 minute ago" : min < 60 ? min + " minutes ago"
+                : min / 60 == 1 ? "1 hour ago" : min / 60 + " hours ago";
     }
 
     private void pickVersion() {
