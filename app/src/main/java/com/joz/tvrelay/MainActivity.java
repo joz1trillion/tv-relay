@@ -27,6 +27,7 @@ import android.util.Rational;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -72,6 +73,9 @@ public class MainActivity extends Activity {
     private View[] pages;
     private Settings settings;
     private boolean inPip;
+    private boolean wide;         // two panes: Listen on the left, Settings / Kodi sync on the right
+    private int currentTab;
+    private int rightTab = 1;     // last tab shown in the right pane
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -128,6 +132,7 @@ public class MainActivity extends Activity {
         kodiQuick = findViewById(R.id.kodiQuick);
         buildKodiCompact(kodiQuick);
         kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
+        applyPanes(getResources().getConfiguration());
     }
 
     @Override
@@ -137,13 +142,50 @@ public class MainActivity extends Activity {
     }
 
     private void showTab(int index) {
+        if (wide && index == 0) index = rightTab; // Listen is always on screen in its own pane
+        currentTab = index;
+        if (index != 0) rightTab = index;
         if (kodiQuick != null) syncKodiControls();
         for (int i = 0; i < tabs.length; i++) {
             boolean on = i == index;
-            pages[i].setVisibility(on ? View.VISIBLE : View.GONE);
+            pages[i].setVisibility(on || (wide && i == 0) ? View.VISIBLE : View.GONE);
             tabs[i].setTypeface(null, on ? Typeface.BOLD : Typeface.NORMAL);
             tabs[i].setTextColor(on ? ACCENT : statusView.getCurrentTextColor());
         }
+    }
+
+    /**
+     * Wide screens (an unfolded Fold, tablets, landscape) put the Listen page in a pane of its own
+     * beside the other tabs, so settings can be changed while watching the graph. Runs again on
+     * fold and unfold; the activity isn't recreated, so playback and scroll positions carry over.
+     */
+    private void applyPanes(Configuration config) {
+        boolean nowWide = config.screenWidthDp >= 600;
+        View listen = pages[0];
+        ViewGroup left = findViewById(R.id.leftPane);
+        ViewGroup frame = findViewById(R.id.pagesFrame);
+        ViewGroup parent = (ViewGroup) listen.getParent();
+        if (nowWide && parent != left) {
+            parent.removeView(listen);
+            left.addView(listen);
+        } else if (!nowWide && parent != frame) {
+            parent.removeView(listen);
+            frame.addView(listen, 0);
+        }
+        wide = nowWide;
+        left.setVisibility(wide ? View.VISIBLE : View.GONE);
+        findViewById(R.id.paneDivider).setVisibility(wide ? View.VISIBLE : View.GONE);
+        tabs[0].setVisibility(wide ? View.GONE : View.VISIBLE);
+        ViewGroup.LayoutParams lp = graph.getLayoutParams();
+        lp.height = dp(wide ? 260 : 180); // more room for the graph when it has a pane to itself
+        graph.setLayoutParams(lp);
+        showTab(currentTab);
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (pages != null) applyPanes(newConfig);
     }
 
     // ---- Settings tab ----

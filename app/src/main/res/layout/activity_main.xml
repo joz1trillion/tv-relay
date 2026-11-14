@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Phone screen: three tabs, and the version (tap for updates) in the corner. Setting rows are built in MainActivity so each gets its ℹ️ button. -->
+<!-- Phone screen: three tabs (two panes when wide), and the version (tap for updates) in the corner. Setting rows are built in MainActivity so each gets its ℹ️ button. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
@@ -22,136 +22,169 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <!-- Wide screens (unfolded Fold, tablets, landscape): MainActivity moves the Listen page
+             into leftPane, so Listen sits beside Settings / Kodi sync. Narrow: leftPane stays empty. -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:orientation="horizontal">
 
-            <TextView android:id="@+id/tabListen" style="@style/Tab" android:text="Listen" />
-            <TextView android:id="@+id/tabSettings" style="@style/Tab" android:text="Settings" />
-            <TextView android:id="@+id/tabKodi" style="@style/Tab" android:text="Kodi sync" />
-        </LinearLayout>
+            <FrameLayout
+                android:id="@+id/leftPane"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:visibility="gone" />
 
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
+            <View
+                android:id="@+id/paneDivider"
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:alpha="0.15"
+                android:background="#FFFFFF"
+                android:visibility="gone" />
 
-            <ScrollView
-                android:id="@+id/pageListen"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
 
                 <LinearLayout
+                    android:id="@+id/tabRow"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
+                    android:orientation="horizontal">
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <Button
-                            android:id="@+id/receive"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:minHeight="56dp"
-                            android:text="Listen" />
-
-                        <Button
-                            android:id="@+id/stop"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginLeft="8dp"
-                            android:layout_weight="1"
-                            android:minHeight="56dp"
-                            android:text="Stop" />
-                    </LinearLayout>
-
-                    <!-- Found / streaming, from the link; works before tapping Listen. -->
-                    <TextView
-                        android:id="@+id/tvState"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/status"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:fontFamily="monospace"
-                        android:textSize="13sp" />
-
-                    <!-- Kodi mode and adjustment, when "Show on Listen tab" is on. Built in MainActivity. -->
-                    <LinearLayout
-                        android:id="@+id/kodiQuick"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:visibility="gone" />
-
-                    <TextView
-                        style="@style/SectionHeader"
-                        android:text="Latency (last 60 s, ms)" />
-
-                    <com.joz.tvrelay.LatencyGraph
-                        android:id="@+id/graph"
-                        android:layout_width="match_parent"
-                        android:layout_height="180dp"
-                        android:layout_marginTop="8dp" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:alpha="0.7"
-                        android:text="Doesn't include the TV's own capture delay, and may not include Bluetooth headphone delay; Android doesn't report either."
-                        android:textSize="12sp" />
-
-                    <!-- "Connect directly" dropdown, built in MainActivity. -->
-                    <LinearLayout
-                        android:id="@+id/listenExtras"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:orientation="vertical" />
+                    <TextView android:id="@+id/tabListen" style="@style/Tab" android:text="Listen" />
+                    <TextView android:id="@+id/tabSettings" style="@style/Tab" android:text="Settings" />
+                    <TextView android:id="@+id/tabKodi" style="@style/Tab" android:text="Kodi sync" />
                 </LinearLayout>
-            </ScrollView>
 
-            <ScrollView
-                android:id="@+id/pageSettings"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone">
-
-                <LinearLayout
-                    android:id="@+id/settingsList"
+                <FrameLayout
+                    android:id="@+id/pagesFrame"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp" />
-            </ScrollView>
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
 
-            <ScrollView
-                android:id="@+id/pageKodi"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone">
+                    <ScrollView
+                        android:id="@+id/pageListen"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent">
 
-                <LinearLayout
-                    android:id="@+id/kodiList"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp" />
-            </ScrollView>
-        </FrameLayout>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal">
+
+                                <Button
+                                    android:id="@+id/receive"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="2"
+                                    android:minHeight="56dp"
+                                    android:text="Listen" />
+
+                                <Button
+                                    android:id="@+id/stop"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginLeft="8dp"
+                                    android:layout_weight="1"
+                                    android:minHeight="56dp"
+                                    android:text="Stop" />
+                            </LinearLayout>
+
+                            <!-- Found / streaming, from the link; works before tapping Listen. -->
+                            <TextView
+                                android:id="@+id/tvState"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/status"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="monospace"
+                                android:textSize="13sp" />
+
+                            <!-- Kodi mode and adjustment, when "Show on Listen tab" is on. Built in MainActivity. -->
+                            <LinearLayout
+                                android:id="@+id/kodiQuick"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:visibility="gone" />
+
+                            <TextView
+                                style="@style/SectionHeader"
+                                android:text="Latency (last 60 s, ms)" />
+
+                            <com.joz.tvrelay.LatencyGraph
+                                android:id="@+id/graph"
+                                android:layout_width="match_parent"
+                                android:layout_height="180dp"
+                                android:layout_marginTop="8dp" />
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:alpha="0.7"
+                                android:text="Doesn't include the TV's own capture delay, and may not include Bluetooth headphone delay; Android doesn't report either."
+                                android:textSize="12sp" />
+
+                            <!-- "Connect directly" dropdown, built in MainActivity. -->
+                            <LinearLayout
+                                android:id="@+id/listenExtras"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:orientation="vertical" />
+                        </LinearLayout>
+                    </ScrollView>
+
+                    <ScrollView
+                        android:id="@+id/pageSettings"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:id="@+id/settingsList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp" />
+                    </ScrollView>
+
+                    <ScrollView
+                        android:id="@+id/pageKodi"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:id="@+id/kodiList"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="20dp" />
+                    </ScrollView>
+                </FrameLayout>
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/version"
