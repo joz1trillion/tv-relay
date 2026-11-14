@@ -31,6 +31,7 @@ public class TvActivity extends Activity {
     private TextView detail;
     private TextView kodiStatus;
     private TextView hint;
+    private View kodiButton;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -58,12 +59,14 @@ public class TvActivity extends Activity {
                 requestCapture();
             }
         });
-        findViewById(R.id.kodi).setOnClickListener(v -> showKodiLogin());
+        kodiButton = findViewById(R.id.kodi);
+        kodiButton.setOnClickListener(v -> showKodiLogin());
 
         for (int id : new int[]{R.id.toggle, R.id.kodi}) {
-            findViewById(id).setOnFocusChangeListener((v, focused) ->
-                    v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f)
-                            .setDuration(120).start());
+            findViewById(id).setOnFocusChangeListener((v, focused) -> {
+                v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start();
+                render(); // the hint explains the focused button
+            });
         }
         toggle.requestFocus();
 
@@ -112,8 +115,10 @@ public class TvActivity extends Activity {
         boolean quiet = k == Protocol.KODI_STATE_OFF || k == Protocol.KODI_STATE_MISSING
                 || (k == Protocol.KODI_STATE_UNREACHABLE && !KodiSync.syncing);
         kodiStatus.setVisibility(on && !quiet ? View.VISIBLE : View.GONE);
-        hint.setText(on
-                ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
+        hint.setText(kodiButton.isFocused()
+                ? "Optional, only if you watch in Kodi: lets TV Relay line up Kodi's picture with the sound "
+                + "on your phone. Not needed for anything else."
+                : on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }
 
@@ -172,9 +177,9 @@ public class TvActivity extends Activity {
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
 
         new AlertDialog.Builder(this)
-                .setTitle("Kodi login")
-                .setMessage("In Kodi: Settings > Services > Control > Allow remote control via HTTP. "
-                        + "Enter the same details here. Only needed for Kodi lip sync.")
+                .setTitle("Connect to Kodi")
+                .setMessage("Optional, only for Kodi lip sync. In Kodi: Settings > Services > Control > "
+                        + "Allow remote control via HTTP. Enter the same details here.")
                 .setView(form)
                 .setPositiveButton("Save", (d, w) -> {
                     try {
@@ -195,7 +200,7 @@ public class TvActivity extends Activity {
     /** Saving the login checks it straight away, so mistakes show up here and not mid-movie. */
     private void testKodiLogin() {
         AlertDialog checking = new AlertDialog.Builder(this)
-                .setTitle("Kodi login")
+                .setTitle("Connect to Kodi")
                 .setMessage("Checking the connection to Kodi…")
                 .setCancelable(false)
                 .show();

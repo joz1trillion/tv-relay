@@ -11,6 +11,7 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -48,6 +49,8 @@ public class MainActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private TextView statusView;
     private TextView kodiStatusView;
+    private TextView kodiStatusDetail;
+    private GradientDrawable kodiStatusCard;
     private TextView kodiAdjustView;
     private SeekBar kodiSlider;
     private LatencyGraph graph;
@@ -191,13 +194,19 @@ public class MainActivity extends Activity {
     // ---- Kodi tab ----
 
     private void buildKodi(LinearLayout list) {
-        kodiStatusView = text(list, "", 17);
+        // Connection card: tinted green/orange/grey to match the dot.
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(12), dp(16), dp(12));
+        kodiStatusCard = new GradientDrawable();
+        kodiStatusCard.setCornerRadius(dp(12));
+        card.setBackground(kodiStatusCard);
+        list.addView(card);
+        kodiStatusView = text(card, "", 18);
         kodiStatusView.setTypeface(Typeface.DEFAULT_BOLD);
+        kodiStatusDetail = text(card, "", 14);
+        kodiStatusDetail.setAlpha(0.8f);
 
-        TextView intro = text(list, "If you watch in Kodi on the TV, TV Relay can make Kodi play its audio "
-                + "slightly early, so the sound on this phone lines up with the picture.", 15);
-        intro.setAlpha(0.8f);
-        intro.setPadding(0, dp(8), 0, 0);
         buildKodiSetup(list);
 
         choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
@@ -240,13 +249,13 @@ public class MainActivity extends Activity {
         }, false);
     }
 
-    /** Short setup steps, open until Kodi has been reached once. The full guide is on GitHub. */
+    /** What Kodi sync is and how to set it up, collapsed. The full guide is on GitHub. */
     private void buildKodiSetup(LinearLayout list) {
         TextView toggle = text(list, "", 16);
-        toggle.setPadding(0, dp(12), 0, dp(4));
+        toggle.setPadding(0, dp(16), 0, dp(4));
         LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
-        body.setVisibility(settings.kodiSeen ? View.GONE : View.VISIBLE);
+        body.setVisibility(View.GONE);
         list.addView(body);
         Runnable label = () -> toggle.setText((body.getVisibility() == View.VISIBLE ? "▾ " : "▸ ") + "How to set it up");
         label.run();
@@ -255,10 +264,13 @@ public class MainActivity extends Activity {
             label.run();
         });
 
+        TextView intro = text(body, "Optional, for watching in Kodi on the TV: TV Relay makes Kodi play its "
+                + "audio slightly early, so the sound on this phone lines up with the picture.", 14);
+        intro.setPadding(0, 0, 0, dp(8));
         TextView steps = text(body, "1. On the TV, install Kodi (version 21 or newer) from the Play Store.\n"
                 + "2. In Kodi: Settings → Services → Control → turn on \"Allow remote control via HTTP\" "
                 + "and set a password.\n"
-                + "3. In TV Relay on the TV: Kodi login → enter that password. It checks the connection for you.\n"
+                + "3. In TV Relay on the TV: Connect to Kodi → enter that password. It checks the connection for you.\n"
                 + "4. Here: tap Listen, set Mode to Automatic, and play something in Kodi.", 14);
         steps.setLineSpacing(dp(4), 1f);
         TextView link = text(body, "Full guide, including Plex in Kodi →", 14);
@@ -273,21 +285,20 @@ public class MainActivity extends Activity {
         });
     }
 
-    /** "● Connected to Kodi" with a green or orange dot; remembers the first success. */
+    /** "● Kodi connected" in green, orange when something's wrong, grey when unknown. */
     private void showKodiStatus() {
         int state = ReceiverService.running ? ReceiverService.kodiState : -1;
         boolean connected = state == Protocol.KODI_STATE_IDLE || state == Protocol.KODI_STATE_APPLIED
                 || state == Protocol.KODI_STATE_READY;
-        boolean problem = state == Protocol.KODI_STATE_UNREACHABLE || state == Protocol.KODI_STATE_AUTH;
+        boolean problem = state == Protocol.KODI_STATE_UNREACHABLE || state == Protocol.KODI_STATE_AUTH
+                || state == Protocol.KODI_STATE_MISSING;
+        int color = connected ? GOOD : problem ? WARN : Color.GRAY;
         SpannableStringBuilder sb = new SpannableStringBuilder("● ");
-        sb.setSpan(new ForegroundColorSpan(connected ? GOOD : problem ? WARN : Color.GRAY), 0, 1,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        sb.append(describeKodi());
+        sb.setSpan(new ForegroundColorSpan(color), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.append(connected ? "Kodi connected" : problem ? "Kodi not connected" : "Kodi: not checked yet");
         kodiStatusView.setText(sb);
-        if (connected && !settings.kodiSeen) {
-            settings.kodiSeen = true;
-            settings.save(this);
-        }
+        kodiStatusDetail.setText(describeKodi());
+        kodiStatusCard.setColor(Color.argb(0x26, Color.red(color), Color.green(color), Color.blue(color)));
     }
 
     private Button nudge(String text, int delta) {
@@ -501,12 +512,12 @@ public class MainActivity extends Activity {
     private static String describeKodi() {
         if (!ReceiverService.running) return "Tap Listen to check the connection to Kodi";
         switch (ReceiverService.kodiState) {
-            case Protocol.KODI_STATE_READY: return "Connected to Kodi · lip sync off";
-            case Protocol.KODI_STATE_IDLE: return "Connected to Kodi · nothing playing";
+            case Protocol.KODI_STATE_READY: return "Lip sync is off: pick a mode below";
+            case Protocol.KODI_STATE_IDLE: return "Nothing playing in Kodi";
             case Protocol.KODI_STATE_APPLIED:
-                return "Connected to Kodi · audio delay " + ReceiverService.kodiAppliedMs + " ms";
+                return "Kodi audio delay " + ReceiverService.kodiAppliedMs + " ms";
             case Protocol.KODI_STATE_UNREACHABLE: return "Can't reach Kodi: is it open, with HTTP remote control on?";
-            case Protocol.KODI_STATE_AUTH: return "Kodi login is wrong: fix it under Kodi login on the TV";
+            case Protocol.KODI_STATE_AUTH: return "Kodi login is wrong: fix it under Connect to Kodi on the TV";
             case Protocol.KODI_STATE_MISSING: return "Kodi isn't installed on the TV";
             default: return "Waiting for the TV…";
         }

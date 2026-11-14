@@ -43,7 +43,6 @@ final class Settings {
     String kodiUser = "kodi";
     String kodiPass = "";
     String host = "";   // phone side: TV address, blank = discover
-    boolean kodiSeen;   // phone side: Kodi has answered once, so the setup steps start collapsed
     boolean updatePrereleases = true; // every release so far is a pre-release
 
     static Settings load(Context c) {
@@ -71,7 +70,6 @@ final class Settings {
         s.kodiUser = p.getString("kodiUser", "kodi");
         s.kodiPass = p.getString("kodiPass", "");
         s.host = p.getString("host", "");
-        s.kodiSeen = p.getBoolean("kodiSeen", false);
         s.updatePrereleases = p.getBoolean("updatePrereleases", true);
         return s;
     }
@@ -96,7 +94,6 @@ final class Settings {
                 .putString("kodiUser", kodiUser)
                 .putString("kodiPass", kodiPass)
                 .putString("host", host)
-                .putBoolean("kodiSeen", kodiSeen)
                 .putBoolean("updatePrereleases", updatePrereleases)
                 .apply();
     }

@@ -30,7 +30,7 @@ An alternative is [PlexKodiConnect](https://github.com/croneter/PlexKodiConnect)
 1. In Kodi: **Settings (gear) → Services → Control**.
 2. Turn on **Allow remote control via HTTP**.
 3. Leave **Port** at `8080` and **Username** at `kodi`. Set a **Password**. (If you don't see the username and password fields, change the settings level at the bottom left to Standard or higher.)
-4. Open **TV Relay** on the TV and choose **Kodi login**. Enter the same port, username and password and choose **Save**.
+4. Open **TV Relay** on the TV and choose **Connect to Kodi**. Enter the same port, username and password and choose **Save**.
 
 TV Relay checks the login straight away and tells you whether it connected, the password is wrong, or Kodi couldn't be reached.
 
@@ -52,7 +52,7 @@ If moving the slider right makes the sound *later* instead of earlier, turn on *
 | What the phone says | What to do |
 | --- | --- |
 | Can't reach Kodi | Open Kodi on the TV and check **Allow remote control via HTTP** is on. |
-| Kodi login is wrong | Re-enter the password under **Kodi login** in TV Relay on the TV. |
+| Kodi login is wrong | Re-enter the password under **Connect to Kodi** in TV Relay on the TV. |
 | Kodi isn't installed on the TV | Install Kodi from the Play Store on the TV. |
 | Waiting for the TV… | Start streaming on the TV and tap Listen on the phone. |
 

@@ -50,7 +50,7 @@
             <Button
                 android:id="@+id/kodi"
                 style="@style/TvButton"
-                android:text="Kodi login" />
+                android:text="Connect to Kodi" />
         </LinearLayout>
 
         <LinearLayout

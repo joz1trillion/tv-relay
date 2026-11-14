@@ -31,7 +31,7 @@ All settings live in the phone app; the TV follows whatever the phone asks for. 
 
 1. Install Kodi 21 or newer on the TV from the Play Store.
 2. In Kodi on the TV: Settings → Services → Control → **Allow remote control via HTTP**, and set a password.
-3. In TV Relay on the TV: **Kodi login**, enter the same port, username and password. It checks the connection right away.
+3. In TV Relay on the TV: **Connect to Kodi**, enter the same port, username and password. It checks the connection right away.
 4. On the phone: **Kodi sync** tab → Mode **Automatic**, then fine-tune with the slider.
 
 New to Kodi? The [full Kodi guide](docs/kodi.md) covers installing it, getting Plex or Jellyfin into it, and troubleshooting.
