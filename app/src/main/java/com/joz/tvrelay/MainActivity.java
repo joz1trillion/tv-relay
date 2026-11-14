@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     private final List<Spinner> kodiModeSpinners = new ArrayList<>();
     private final List<SeekBar> kodiSliders = new ArrayList<>();
     private final List<TextView> kodiAdjustViews = new ArrayList<>();
+    private final List<Button> kodiSyncButtons = new ArrayList<>();
     private LinearLayout kodiQuick;
     private TextView tvStateView;
     private TextView tvPicker;
@@ -349,12 +350,8 @@ public class MainActivity extends Activity {
 
     /** Mode, adjustment slider and nudges. Built once per tab that shows them; kept in step on tab switch. */
     private void buildKodiControls(LinearLayout list) {
-        kodiModeSpinners.add(choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
-            settings.kodiMode = v;
-            ReceiverService.kodiMode = v;
-        }, false));
-        toggle(list, "Sync when paused", R.string.info_kodi_sync_at_pause, settings.kodiSyncAtPause,
-                v -> settings.kodiSyncAtPause = v, false);
+        kodiModeSpinners.add(choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS,
+                Settings.kodiModePosition(settings.kodiMode), v -> setKodiMode(Settings.KODI_MODES[v]), false));
 
         label(list, "Adjustment", R.string.info_kodi_adjust);
         TextView value = text(list, "", 28);
@@ -404,13 +401,27 @@ public class MainActivity extends Activity {
         sync.setAllCaps(false);
         sync.setOnClickListener(v -> syncKodiNow());
         list.addView(sync);
+        kodiSyncButtons.add(sync);
         showKodiAdjust();
+    }
+
+    private void setKodiMode(int mode) {
+        settings.kodiMode = mode;
+        ReceiverService.kodiMode = mode;
+        showSyncButtons();
+    }
+
+    /** Sync now only means something in "Automatic, at pause": the other modes apply at once. */
+    private void showSyncButtons() {
+        for (Button b : kodiSyncButtons) {
+            b.setVisibility(settings.kodiMode == Protocol.KODI_AUTO_PAUSE ? View.VISIBLE : View.GONE);
+        }
     }
 
     /** Apply the measured delay to Kodi right away, mid-video; Kodi catches the picture up once. */
     private void syncKodiNow() {
-        if (!ReceiverService.running || settings.kodiMode == Protocol.KODI_OFF) {
-            Toast.makeText(this, "Turn on a lip sync mode and tap Listen first", Toast.LENGTH_SHORT).show();
+        if (!ReceiverService.running) {
+            Toast.makeText(this, "Tap Listen first", Toast.LENGTH_SHORT).show();
             return;
         }
         KodiSync.requestSync();
@@ -431,13 +442,12 @@ public class MainActivity extends Activity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, Settings.KODI_LABELS);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         mode.setAdapter(adapter);
-        mode.setSelection(settings.kodiMode, false);
+        mode.setSelection(Settings.kodiModePosition(settings.kodiMode), false);
         mode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (position == settings.kodiMode) return;
-                settings.kodiMode = position;
-                ReceiverService.kodiMode = position;
+                if (Settings.KODI_MODES[position] == settings.kodiMode) return;
+                setKodiMode(Settings.KODI_MODES[position]);
                 settings.save(MainActivity.this);
             }
 
@@ -458,6 +468,7 @@ public class MainActivity extends Activity {
         sync.setAllCaps(false);
         sync.setOnClickListener(v -> syncKodiNow());
         top.addView(sync);
+        kodiSyncButtons.add(sync);
         list.addView(top);
 
         LinearLayout bottom = new LinearLayout(this);
@@ -507,9 +518,11 @@ public class MainActivity extends Activity {
 
     /** The other tab's copy of the Kodi controls may be out of date. */
     private void syncKodiControls() {
+        int position = Settings.kodiModePosition(settings.kodiMode);
         for (Spinner sp : kodiModeSpinners) {
-            if (sp.getSelectedItemPosition() != settings.kodiMode) sp.setSelection(settings.kodiMode, false);
+            if (sp.getSelectedItemPosition() != position) sp.setSelection(position, false);
         }
+        showSyncButtons();
         showKodiAdjust();
     }
 

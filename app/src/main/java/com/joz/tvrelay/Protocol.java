@@ -51,6 +51,7 @@ final class Protocol {
     static final int KODI_OFF = 0;
     static final int KODI_AUTO = 1;
     static final int KODI_MANUAL = 2;
+    static final int KODI_AUTO_PAUSE = 3;  // automatic, but only at a video's start, on pause, or Sync now
     static final int KODI_STATE_OFF = 0;
     static final int KODI_STATE_IDLE = 1;        // reachable, nothing playing
     static final int KODI_STATE_APPLIED = 2;

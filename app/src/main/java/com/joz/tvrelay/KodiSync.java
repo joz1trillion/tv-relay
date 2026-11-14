@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
  */
 final class KodiSync {
     private static final String TAG = "TvRelayKodi";
+    private static final double AUTO_HYSTERESIS = 0.049; // Automatic ignores wobbles smaller than this
     private static final double STEP = 0.025;   // Kodi only accepts multiples of 25 ms
 
     static volatile String status = "Kodi sync off";
@@ -36,7 +37,6 @@ final class KodiSync {
     private String kodiHost;       // set in the login when Kodi isn't on that TV
     private int port;
     private String auth;
-    private boolean syncAtPause;
     private volatile int mode;
     private volatile int adjustMs;
     private volatile int latencyMs;
@@ -61,7 +61,6 @@ final class KodiSync {
         Settings s = Settings.load(context);
         kodiHost = s.kodiHost.isEmpty() ? null : s.kodiHost;
         port = s.kodiPort;
-        syncAtPause = s.kodiSyncAtPause;
         auth = s.kodiUser.isEmpty() ? null : "Basic " + Base64.encodeToString(
                 (s.kodiUser + ":" + s.kodiPass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
     }
@@ -145,19 +144,21 @@ final class KodiSync {
 
         String item = currentItem(player);
         boolean newItem = !item.equals(lastItem); // Kodi resets the delay for each new video
-        int delayMs = (m == Protocol.KODI_AUTO ? latencyMs : 0) + adjustMs;
+        boolean auto = m == Protocol.KODI_AUTO || m == Protocol.KODI_AUTO_PAUSE;
+        int delayMs = (auto ? latencyMs : 0) + adjustMs;
         // Relay audio arrives late, so Kodi must play audio early: a negative Kodi audio delay.
         double target = Math.round(delayMs / 1000.0 / STEP) * STEP * (flip ? 1 : -1);
         target = Math.max(-10, Math.min(10, target));
-        // Every change makes Kodi catch the picture up (it skips frames for a moment), so the
-        // measured delay is only followed at the start of a video, while paused, or on Sync now.
-        // The user's own adjustments apply straight away: they asked for them.
-        boolean differs = Double.isNaN(applied) || Math.abs(target - applied) >= STEP / 2;
+        // Every change makes Kodi catch the picture up (it skips frames for a moment). Automatic
+        // follows the measured delay once it moves by ~50 ms; at-pause mode only at the start of a
+        // video, while paused, or on Sync now. The user's own adjustments apply straight away.
+        double threshold = m == Protocol.KODI_AUTO ? AUTO_HYSTERESIS : STEP / 2;
+        boolean differs = Double.isNaN(applied) || Math.abs(target - applied) >= threshold;
         boolean userChange = adjustMs != appliedAdjust || flip != appliedFlip || m != appliedMode;
         boolean syncNow = syncRequested;
         syncRequested = false;
-        if (newItem || Double.isNaN(applied) || (differs && (userChange || syncNow
-                || (syncAtPause && isPaused(player))))) {
+        if (newItem || Double.isNaN(applied) || (differs && (userChange || syncNow || m == Protocol.KODI_AUTO
+                || (m == Protocol.KODI_AUTO_PAUSE && isPaused(player))))) {
             setDelay(player, target);
             applied = target;
         }
@@ -167,9 +168,9 @@ final class KodiSync {
         lastItem = item;
         appliedMs = (int) Math.round(applied * 1000);
         int targetMs = (int) Math.round(target * 1000);
-        pendingMs = targetMs != appliedMs ? targetMs : Integer.MIN_VALUE;
+        pendingMs = m == Protocol.KODI_AUTO_PAUSE && targetMs != appliedMs ? targetMs : Integer.MIN_VALUE;
         setState(Protocol.KODI_STATE_APPLIED, String.format(java.util.Locale.US,
-                "Kodi: audio delay %+.3f s (%s)", applied, m == Protocol.KODI_AUTO ? "auto" : "manual"));
+                "Kodi: audio delay %+.3f s (%s)", applied, auto ? "auto" : "manual"));
     }
 
     private void resetIfChanged() {

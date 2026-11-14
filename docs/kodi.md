@@ -40,7 +40,7 @@ Kodi has to be open on the TV for TV Relay to reach it. It's fine to leave it ru
 
 1. In TV Relay on the TV, choose **Start streaming**. On your phone, tap **Listen**.
 2. Open the **Kodi sync** tab on the phone. The card at the top should say **Kodi connected**.
-3. Set **Mode** to **Automatic**. TV Relay then follows the measured Wi-Fi delay by itself.
+3. Set **Mode** to **Automatic, at pause**. TV Relay then follows the measured Wi-Fi delay by itself, without changing it mid-scene.
 4. Play something in Kodi and listen on your phone. If the sound still seems late, move **Adjustment** to the right; if it's early, move it to the left. The **−5 ms / +5 ms** buttons are for fine-tuning.
 
 **Manual** mode ignores the measured delay and uses only your adjustment. With Bluetooth headphones, stay on Automatic and add their delay with the slider: Android doesn't always report it.
@@ -49,17 +49,13 @@ If moving the slider right makes the sound *later* instead of earlier, turn on *
 
 ### When the delay changes
 
-Every time Kodi's audio delay changes mid-video, Kodi catches the picture up by skipping frames for a moment. So TV Relay changes it as little as possible:
+Every time Kodi's audio delay changes mid-video, Kodi catches the picture up by skipping frames for a moment. **Mode** decides when TV Relay changes it:
 
-- **Automatic** follows the measured delay when a video starts, and (with **Sync when paused** on, the default) whenever you pause. In between, the phone's buffer absorbs small Wi-Fi changes.
-- **Sync now** (on the Kodi sync tab, and next to the Kodi controls on the Listen tab) applies the current delay right away.
-- Your own changes apply straight away. The slider applies when you lift your finger, not while dragging.
+- **Automatic** follows the measured delay whenever it moves by about 50 ms, even mid-scene.
+- **Automatic, at pause** (recommended) sets it when a video starts and whenever you pause, never mid-scene; in between, the phone's buffer absorbs small Wi-Fi changes. **Sync now** (on the Kodi sync tab, and in the Kodi row on the Listen tab) applies it straight away. The Kodi card shows a waiting change, e.g. *−100 ms at the next pause or Sync now*.
+- **Manual** uses only your adjustment.
 
-The Kodi sync card shows a pending change, e.g. *Kodi audio delay −75 ms · −100 ms at the next pause or Sync now*.
-
-Turn on **Show on Listen tab** to have Mode and Adjustment above the latency graph as well, so you can fine-tune without switching tabs.
-
-TV Relay on the TV shows a green **Kodi server found** under Start streaming when Kodi's remote control is reachable on port 8080.
+Your own changes always apply straight away. The slider applies when you lift your finger, not while dragging.
 
 ## Troubleshooting
 

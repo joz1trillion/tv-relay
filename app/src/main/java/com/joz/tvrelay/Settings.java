@@ -20,7 +20,9 @@ final class Settings {
     static final int CATCHUP_GENTLE = 0;
     static final int CATCHUP_NORMAL = 1;
     static final int CATCHUP_AGGRESSIVE = 2;
-    static final String[] KODI_LABELS = {"Off", "Automatic", "Manual"};
+    static final String[] KODI_LABELS = {"Off", "Automatic", "Automatic, at pause", "Manual"};
+    static final int[] KODI_MODES = {Protocol.KODI_OFF, Protocol.KODI_AUTO, Protocol.KODI_AUTO_PAUSE,
+            Protocol.KODI_MANUAL}; // the mode behind each label
     static final int SCREEN_AUTO = 0;
     static final int SCREEN_TV = 1;      // capture and send: the remote-friendly TV screen
     static final int SCREEN_CLIENT = 2;  // listen: the phone screen
@@ -47,7 +49,6 @@ final class Settings {
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
-    boolean kodiSyncAtPause = true; // follow the measured delay while paused, not just at a video's start
     boolean kodiOnListen;  // also show the Kodi mode and adjustment on the Listen tab
     // phone side: Kodi's HTTP remote control login
     String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
@@ -83,10 +84,12 @@ final class Settings {
         s.advancedUnlocked &= s.advanced; // since v1.4, turning advanced mode off relocks it
         s.screenMode = p.getInt("screenMode", SCREEN_AUTO);
         s.kodiMode = p.getInt("kodiMode", 0);
+        // v1.7: Automatic now always follows; the gentler at-pause behaviour became its own mode
+        // and the default, which is what Automatic did in v1.6.
+        if (!p.contains("kodiModeV2") && s.kodiMode == Protocol.KODI_AUTO) s.kodiMode = Protocol.KODI_AUTO_PAUSE;
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
         s.kodiOnListen = p.getBoolean("kodiOnListen", false);
-        s.kodiSyncAtPause = p.getBoolean("kodiSyncAtPause", true);
         s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
@@ -116,10 +119,10 @@ final class Settings {
                 .putBoolean("advanced", advanced)
                 .putInt("screenMode", screenMode)
                 .putInt("kodiMode", kodiMode)
+                .putBoolean("kodiModeV2", true)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
                 .putBoolean("kodiOnListen", kodiOnListen)
-                .putBoolean("kodiSyncAtPause", kodiSyncAtPause)
                 .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)
@@ -156,6 +159,11 @@ final class Settings {
 
     static void setPrerelease(Context c, String version, boolean prerelease) {
         prefs(c).edit().putBoolean("pre_" + version, prerelease).apply();
+    }
+
+    static int kodiModePosition(int mode) {
+        for (int i = 0; i < KODI_MODES.length; i++) if (KODI_MODES[i] == mode) return i;
+        return 0;
     }
 
     StreamConfig stream() {
