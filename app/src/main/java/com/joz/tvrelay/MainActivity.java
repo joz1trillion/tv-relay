@@ -47,6 +47,8 @@ import java.util.List;
 /** Phone screen: Listen (controls, stats, graph), Settings, and Kodi sync tabs. */
 public class MainActivity extends Activity {
     private static final int REQ_PERMS = 1;
+    private static final int REQ_STREAM_PERMS = 2;
+    private static final int REQ_CAPTURE = 3;
     private static final int ACCENT = Color.rgb(0x3D, 0x8B, 0xFF);
     private static final int GOOD = Color.rgb(0x34, 0xC7, 0x59);
     private static final int WARN = Color.rgb(0xFF, 0x9F, 0x0A);
@@ -65,6 +67,7 @@ public class MainActivity extends Activity {
     private final List<TextView> kodiAdjustViews = new ArrayList<>();
     private LinearLayout kodiQuick;
     private TextView tvStateView;
+    private TextView tvPicker;
     private EditText hostField;    // Connect directly, kept in step with the TV picker
     private Switch keepTvSwitch;
     private Switch advancedRow;    // Settings switch, shown once advanced mode is unlocked
@@ -132,6 +135,14 @@ public class MainActivity extends Activity {
         buildConnectDirectly(findViewById(R.id.listenExtras));
         tvStateView = findViewById(R.id.tvState);
         tvStateView.setOnClickListener(v -> pickTv());
+        tvPicker = findViewById(R.id.tvPicker);
+        GradientDrawable box = new GradientDrawable();
+        box.setCornerRadius(dp(10));
+        box.setStroke(dp(1), ACCENT);
+        tvPicker.setBackground(box);
+        tvPicker.setPadding(dp(14), dp(10), dp(14), dp(10));
+        tvPicker.setOnClickListener(v -> pickTv());
+        findViewById(R.id.stream).setOnClickListener(v -> streamFromHere());
         kodiQuick = findViewById(R.id.kodiQuick);
         buildKodiCompact(kodiQuick);
         kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
@@ -151,6 +162,7 @@ public class MainActivity extends Activity {
         settings.advancedUnlocked = fresh.advancedUnlocked;
         settings.advanced = fresh.advanced;
         findViewById(R.id.modeRow).setVisibility(settings.advanced ? View.VISIBLE : View.GONE);
+        findViewById(R.id.stream).setVisibility(settings.advanced ? View.VISIBLE : View.GONE);
         if (advancedRow != null) {
             ((View) advancedRow.getParent()).setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
             advancedHeader.setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
@@ -752,6 +764,10 @@ public class MainActivity extends Activity {
     /** Stop listening; if the TV is still streaming, offer to stop it too (unless told to keep it). */
     private void stopListening() {
         stopService(new Intent(this, ReceiverService.class));
+        if (SenderService.running) { // advanced: this device was streaming too
+            stopService(new Intent(this, SenderService.class));
+            if (!Settings.tvScreen(this)) stopService(new Intent(this, LinkService.class));
+        }
         if (!TvLink.found() || !TvLink.streaming || settings.keepTvStreaming) return;
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -817,7 +833,53 @@ public class MainActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        if (requestCode == REQ_STREAM_PERMS) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                streamFromHere();
+            } else {
+                Toast.makeText(this, "Streaming needs the audio recording permission", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
         startReceiver(); // notifications are optional
+    }
+
+    /**
+     * Advanced mode: this device streams its own audio like a TV, for a device the app took for a
+     * phone, or to send a phone's audio to another device. Same capture prompt as on the TV.
+     */
+    private void streamFromHere() {
+        if (SenderService.running) {
+            Toast.makeText(this, "Already streaming from this device", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        List<String> missing = new ArrayList<>();
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            missing.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            missing.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+        if (!missing.isEmpty()) {
+            requestPermissions(missing.toArray(new String[0]), REQ_STREAM_PERMS);
+            return;
+        }
+        startActivityForResult(getSystemService(android.media.projection.MediaProjectionManager.class)
+                .createScreenCaptureIntent(), REQ_CAPTURE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode != REQ_CAPTURE) return;
+        if (resultCode != RESULT_OK || data == null) {
+            Toast.makeText(this, "Recording wasn't allowed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        startForegroundService(new Intent(this, SenderService.class)
+                .putExtra(SenderService.EXTRA_RESULT_CODE, resultCode)
+                .putExtra(SenderService.EXTRA_RESULT_DATA, data));
+        startForegroundService(new Intent(this, LinkService.class)); // so other devices can find this one
     }
 
     // ---- status text ----
@@ -866,14 +928,22 @@ public class MainActivity extends Activity {
         SpannableStringBuilder sb = new SpannableStringBuilder("● ");
         sb.setSpan(new ForegroundColorSpan(color), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sb.append(text);
-        int count = TvLink.all().size();
-        sb.append(found && TvLink.name != null ? "\n" + TvLink.name : "")
-                .append(count > 1 ? (found && TvLink.name != null ? " · " : "\n") + count + " TVs found" : "")
-                .append("  ▾");
         if (found && TvLink.versionCode != Updater.versionCode(this)) {
             sb.append("\nThe TV has a different TV Relay version: update both to the same one.");
         }
         tvStateView.setText(sb);
+
+        // The selector: which TV, and that it's a choice.
+        int count = TvLink.all().size();
+        String which = !found ? (count == 0 ? "No TV found yet" : "Looking…")
+                : TvLink.name != null ? TvLink.name + "  ·  " + TvLink.address : TvLink.address;
+        SpannableStringBuilder p = new SpannableStringBuilder("TV  ");
+        p.setSpan(new ForegroundColorSpan(ACCENT), 0, 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        p.setSpan(new android.text.style.StyleSpan(Typeface.BOLD), 0, 2, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        p.append(which);
+        if (settings.host.isEmpty() && found) p.append("  (automatic)");
+        p.append(count > 1 ? "   ▾ " + count + " TVs" : "   ▾");
+        tvPicker.setText(p);
     }
 
     private String describePip() {
@@ -902,7 +972,13 @@ public class MainActivity extends Activity {
     }
 
     private String describe() {
-        StringBuilder sb = new StringBuilder(ReceiverService.status);
+        StringBuilder sb = new StringBuilder();
+        if (SenderService.running) {
+            int n = SenderService.clientCount;
+            sb.append("Streaming from this device to ").append(n).append(n == 1 ? " listener" : " listeners")
+                    .append(SenderService.format.isEmpty() ? "" : " · " + SenderService.format).append("\n");
+        }
+        sb.append(ReceiverService.status);
         JitterBuffer jb = ReceiverService.jitter;
         if (ReceiverService.running && jb != null) {
             sb.append("\nbuffer ").append(jb.bufferMs()).append(" ms (target ").append(jb.targetMs())

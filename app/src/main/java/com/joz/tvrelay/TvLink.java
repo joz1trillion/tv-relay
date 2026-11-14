@@ -137,6 +137,7 @@ final class TvLink {
                 }
                 int len = reply.getLength();
                 if (len < 16 || rb.getInt(0) != Protocol.MAGIC_STATUS) continue;
+                if (NetUtil.isLocal(reply.getAddress())) continue; // never list this device itself
                 String from = reply.getAddress().getHostAddress();
                 Tv tv;
                 synchronized (tvs) {

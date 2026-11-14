@@ -140,6 +140,7 @@ public class ReceiverService extends Service {
 
                 InetAddress from = p.getAddress();
                 if (server == null) {
+                    if (NetUtil.isLocal(from)) continue; // this device streaming too, in advanced mode
                     server = from; // lock on to the first TV that answers
                 } else if (!server.equals(from)) {
                     continue;

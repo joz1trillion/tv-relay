@@ -100,6 +100,17 @@
                                     android:minHeight="56dp"
                                     android:text="Listen" />
 
+                                <!-- Advanced mode only: stream this device's audio, like a TV does. -->
+                                <Button
+                                    android:id="@+id/stream"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginLeft="8dp"
+                                    android:layout_weight="1.4"
+                                    android:minHeight="56dp"
+                                    android:text="Stream"
+                                    android:visibility="gone" />
+
                                 <Button
                                     android:id="@+id/stop"
                                     android:layout_width="0dp"
@@ -109,6 +120,14 @@
                                     android:minHeight="56dp"
                                     android:text="Stop" />
                             </LinearLayout>
+
+                            <!-- Which TV to listen to; styled and filled in by MainActivity. -->
+                            <TextView
+                                android:id="@+id/tvPicker"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:textSize="15sp" />
 
                             <!-- Found / streaming, from the link; works before tapping Listen. -->
                             <TextView

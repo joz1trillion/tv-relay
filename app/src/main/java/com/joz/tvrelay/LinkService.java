@@ -86,6 +86,8 @@ public class LinkService extends Service {
                 break; // closed on shutdown
             }
             if (p.getLength() < Protocol.QUERY_BYTES || in.getInt(0) != Protocol.MAGIC_QUERY) continue;
+            // A device switched to Client mode (advanced) isn't a TV to phones, unless it's streaming.
+            if (!SenderService.running && !Settings.tvScreen(this)) continue;
             if (buf[12] == Protocol.QUERY_START && !SenderService.running) askToStart();
             if (buf[12] == Protocol.QUERY_STOP && SenderService.running) {
                 stopService(new Intent(this, SenderService.class)); // fine from the background
