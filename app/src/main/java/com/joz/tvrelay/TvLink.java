@@ -31,7 +31,7 @@ final class TvLink {
         return lastReplyMs != 0 && SystemClock.elapsedRealtime() - lastReplyMs < FRESH_MS;
     }
 
-    /** Asks the TV to open its capture prompt; works while TV Relay is on the TV's screen, or in advanced mode. */
+    /** Asks the TV to open its capture prompt; works while TV Relay is on the TV's screen, or in automatic start mode. */
     static void requestStart() {
         command = Protocol.QUERY_START;
     }

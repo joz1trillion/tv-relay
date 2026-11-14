@@ -45,7 +45,7 @@ public class TvActivity extends Activity {
     private TextView hint;
     private TextView ip;
     private TextView kodi;
-    private TextView advanced;
+    private Button startMode;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -74,10 +74,13 @@ public class TvActivity extends Activity {
         });
         ip = findViewById(R.id.ip);
         kodi = findViewById(R.id.kodi);
-        advanced = findViewById(R.id.advanced);
-        advanced.setOnClickListener(v -> showAdvanced());
-        toggle.setOnFocusChangeListener((v, focused) ->
-                v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
+        kodi.setOnClickListener(v -> showKodi());
+        startMode = findViewById(R.id.startMode);
+        startMode.setOnClickListener(v -> showStartMode());
+        for (View b : new View[]{toggle, startMode}) {
+            b.setOnFocusChangeListener((v, focused) ->
+                    v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
+        }
         toggle.requestFocus();
 
         updates = new UpdateUi(this, findViewById(R.id.version));
@@ -149,12 +152,12 @@ public class TvActivity extends Activity {
         }
         String address = ipAddress();
         ip.setText(address != null ? "IP address " + address : "No network");
-        advanced.setText("Advanced mode: " + (android.provider.Settings.canDrawOverlays(this) ? "on" : "off"));
+        startMode.setText("Start mode: " + (autoStart() ? "Auto" : "Manual"));
         boolean found = LinkService.kodiFound;
         SpannableStringBuilder k = new SpannableStringBuilder("● ");
         k.setSpan(new ForegroundColorSpan(found ? Color.rgb(0x34, 0xC7, 0x59) : Color.rgb(0xFF, 0x45, 0x3A)),
                 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        kodi.setText(k.append(found ? "Kodi server found" : "Kodi server not found"));
+        kodi.setText(k.append(found ? "Kodi found" : "Kodi not found"));
         hint.setText(on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }
@@ -203,26 +206,47 @@ public class TvActivity extends Activity {
         returnWhenStarted = false;
     }
 
-    /** Advanced mode is Android's "display over other apps" permission, which this TV lets you grant in its settings. */
-    private void showAdvanced() {
-        boolean on = android.provider.Settings.canDrawOverlays(this);
+    /** Auto start is Android's "display over other apps" permission, which this TV lets you grant in its settings. */
+    private boolean autoStart() {
+        return android.provider.Settings.canDrawOverlays(this);
+    }
+
+    private void showStartMode() {
+        boolean auto = autoStart();
         new AlertDialog.Builder(this)
-                .setTitle("Advanced mode: " + (on ? "on" : "off"))
-                .setMessage("Lets the phone start streaming even while you're in another app: tapping Listen "
-                        + "pops the TV's recording prompt up over your show, and you're back in the show after "
-                        + "pressing Start now.\n\nIt uses Android's \"Display over other apps\" permission. "
-                        + (on ? "To turn it off, find TV Relay on the next screen and switch it off."
-                        : "On the next screen, find TV Relay and switch it on, then press Back."))
-                .setPositiveButton("Open setting", (d, w) -> {
-                    try {
-                        startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:" + getPackageName())));
-                    } catch (Exception e) {
-                        new AlertDialog.Builder(this).setMessage("Look in Settings > Apps > Special app access > "
-                                + "Display over other apps.").setPositiveButton("OK", null).show();
-                    }
-                })
-                .setNegativeButton("Close", null)
+                .setTitle(auto ? "Start mode: Auto" : "Turn on automatic start?")
+                .setMessage((auto ? "Your phone can start streaming any time, even while you're watching something "
+                        + "else: the TV's recording prompt pops up over your show, and after Start now you're "
+                        + "back in it.\n\nTo switch back to manual, find TV Relay on the next screen and turn it off."
+                        : "Lets your phone start streaming any time, even while you're watching something else: "
+                        + "tapping Listen pops the TV's recording prompt up over your show, and after Start now "
+                        + "you're back in it.\n\nAndroid needs TV Relay allowed to \"Display over other apps\". "
+                        + "On the next screen, find TV Relay and turn it on, then press Back."))
+                .setPositiveButton("Open setting", (d, w) -> openOverlaySetting())
+                .setNegativeButton(auto ? "Close" : "Not now", null)
+                .show();
+    }
+
+    private void openOverlaySetting() {
+        try {
+            startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (Exception e) {
+            new AlertDialog.Builder(this).setMessage("Look in Settings > Apps > Special app access > "
+                    + "Display over other apps.").setPositiveButton("OK", null).show();
+        }
+    }
+
+    private void showKodi() {
+        String ip = ipAddress();
+        new AlertDialog.Builder(this)
+                .setTitle("Kodi lip sync (optional)")
+                .setMessage((LinkService.kodiFound
+                        ? "Kodi found at " + (ip != null ? ip : "this TV") + ":" + LinkService.KODI_PORT + "."
+                        : "Kodi not found.")
+                        + "\n\nOnly if you watch in Kodi: TV Relay can adjust Kodi's audio delay so the picture "
+                        + "lines up with the sound on your phone. Set it up in the phone app's Kodi sync tab.")
+                .setPositiveButton("OK", null)
                 .show();
     }
 

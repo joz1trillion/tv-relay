@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    <!-- TV advanced mode: lets the phone's Listen pop the recording prompt up over other apps. -->
+    <!-- TV automatic start mode: lets the phone's Listen pop the recording prompt up over other apps. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The TV screen's "Update" button installs new releases from GitHub. -->

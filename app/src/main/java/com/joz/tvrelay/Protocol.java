@@ -17,7 +17,7 @@ package com.joz.tvrelay;
  *   status:    [int STATUS][long pingNanos][byte streaming][byte kodiFound][short versionCode]
  *              [byte screenOpen][byte canPopUp][2 bytes 0]
  *              screenOpen: TV Relay is on the TV's screen, so start can work.
- *              canPopUp: advanced mode, TV Relay may open its screen over other apps, so start always works.
+ *              canPopUp: automatic start mode, TV Relay may open its screen over other apps, so start always works.
  */
 final class Protocol {
     static final int PORT = 48100;

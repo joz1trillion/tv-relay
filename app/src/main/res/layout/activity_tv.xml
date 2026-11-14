@@ -47,15 +47,10 @@
                 android:textSize="28sp"
                 android:textStyle="bold" />
 
-            <!-- Whether Kodi's web server answers on this TV, for Kodi lip sync. -->
-            <TextView
-                android:id="@+id/kodi"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:paddingLeft="12dp"
-                android:textColor="#8E8E96"
-                android:textSize="16sp" />
+            <!-- Manual: start on the TV. Auto: the phone can start it any time ("display over other apps"). -->
+            <Button
+                android:id="@+id/startMode"
+                style="@style/TvButton" />
         </LinearLayout>
 
         <LinearLayout
@@ -116,9 +111,9 @@
             android:textColor="#8E8E96"
             android:textSize="16sp" />
 
-        <!-- Focusable: OK explains advanced mode and opens its setting. -->
+        <!-- Whether Kodi's web server answers on this TV. Focusable: OK explains Kodi lip sync. -->
         <TextView
-            android:id="@+id/advanced"
+            android:id="@+id/kodi"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"

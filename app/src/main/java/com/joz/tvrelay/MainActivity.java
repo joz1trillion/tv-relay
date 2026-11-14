@@ -223,6 +223,11 @@ public class MainActivity extends Activity {
     // ---- Kodi tab ----
 
     private void buildKodi(LinearLayout list) {
+        TextView intro = text(list, "Optional, only if you watch in Kodi on the TV: lets you adjust Kodi's audio "
+                + "delay so the picture lines up with the sound on this phone.", 14);
+        intro.setAlpha(0.8f);
+        intro.setPadding(0, 0, 0, dp(12));
+
         // Connection card: tinted green/orange/grey to match the dot.
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
@@ -369,9 +374,6 @@ public class MainActivity extends Activity {
     private void buildKodiSetup(LinearLayout list) {
         LinearLayout body = dropdown(list, "How to set it up", false);
 
-        TextView intro = text(body, "Optional, for watching in Kodi on the TV: TV Relay makes Kodi play its "
-                + "audio slightly early, so the sound on this phone lines up with the picture.", 14);
-        intro.setPadding(0, 0, 0, dp(8));
         TextView steps = text(body, "1. On the TV, install Kodi (version 21 or newer) from the Play Store.\n"
                 + "2. In Kodi: Settings → Services → Control → turn on \"Allow remote control via HTTP\" "
                 + "and set a password.\n"
@@ -705,9 +707,21 @@ public class MainActivity extends Activity {
         if (TvLink.found() && !TvLink.streaming) {
             if (TvLink.screenOpen || TvLink.canPopUp) {
                 TvLink.requestStart();
-                Toast.makeText(this, "Press Allow on the TV", Toast.LENGTH_LONG).show();
-            } else {
+                Toast.makeText(this, "Press Start now on the TV", Toast.LENGTH_LONG).show();
+            } else if (settings.startTipShown) {
                 Toast.makeText(this, "Open TV Relay on the TV and press Start streaming", Toast.LENGTH_LONG).show();
+            }
+            if (!TvLink.canPopUp && !settings.startTipShown) {
+                settings.startTipShown = true;
+                settings.save(this);
+                new AlertDialog.Builder(this)
+                        .setTitle("Start the TV from your phone")
+                        .setMessage("The TV isn't streaming yet. To let Listen start it any time, even while "
+                                + "you're watching something, turn on automatic start on the TV:\n\n"
+                                + "TV Relay on the TV → Start mode → Open setting → turn TV Relay on.\n\n"
+                                + "Until then, press Start streaming on the TV.")
+                        .setPositiveButton("Got it", null)
+                        .show();
             }
         }
         requestNotificationsThenListen();

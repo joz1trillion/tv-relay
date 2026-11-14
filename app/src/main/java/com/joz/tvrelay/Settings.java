@@ -36,6 +36,7 @@ final class Settings {
     boolean keepScreenOn;
     boolean pip;           // mini window; off by default since v0.10
     boolean keepTvStreaming; // phone side: Stop leaves the TV streaming, without asking
+    boolean startTipShown;   // phone side: explained automatic start mode once
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
@@ -68,6 +69,7 @@ final class Settings {
         s.keepScreenOn = p.getInt("keepScreenOn", 0) == 1;
         s.pip = p.getBoolean("miniWindow", false); // new key: the old "pip" defaulted to on
         s.keepTvStreaming = p.getBoolean("keepTvStreaming", false);
+        s.startTipShown = p.getBoolean("startTipShown", false);
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
@@ -96,6 +98,7 @@ final class Settings {
                 .putInt("keepScreenOn", keepScreenOn ? 1 : 0)
                 .putBoolean("miniWindow", pip)
                 .putBoolean("keepTvStreaming", keepTvStreaming)
+                .putBoolean("startTipShown", startTipShown)
                 .putInt("kodiMode", kodiMode)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)

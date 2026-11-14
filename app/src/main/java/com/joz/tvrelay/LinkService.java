@@ -23,7 +23,7 @@ import java.nio.ByteBuffer;
  */
 public class LinkService extends Service {
     private static final String TAG = "TvRelayLink";
-    private static final int KODI_PORT = 8080;
+    static final int KODI_PORT = 8080;
 
     static volatile boolean running;
     static volatile boolean kodiFound;
@@ -115,7 +115,7 @@ public class LinkService extends Service {
     }
 
     /**
-     * Advanced mode: with "display over other apps" granted (adb on most TVs), Android lets TV Relay
+     * Automatic start mode: with "display over other apps" granted (adb on most TVs), Android lets TV Relay
      * open its screen from the background, so the phone can start streaming any time.
      */
     private boolean canPopUp() {

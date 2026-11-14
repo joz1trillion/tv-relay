@@ -25,7 +25,7 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 2. **TV:** open TV Relay, press **Start streaming**, and allow the recording prompt. Then press **Back to my show**.
 3. **Phone:** open TV Relay and tap **Listen**. It finds the TV automatically; if not, enter the TV's IP (shown on the TV under **Start streaming**) under **Connect directly** on the Listen tab.
 
-All settings live in the phone app; the TV follows whatever the phone asks for. Once TV Relay has been opened on the TV, the phone's Listen tab shows whether it found the TV and whether the TV is streaming. If the TV Relay screen is open on the TV, tapping **Listen** brings up the TV's Allow prompt for you. With **Advanced mode** on (bottom-left of the TV screen; it uses Android's "Display over other apps" permission), that works even while you're in another app: the prompt pops up over your show. Tapping **Stop** on the phone offers to stop the TV too, which works with TV Relay in the background. Every setting has an info button explaining what it does.
+All settings live in the phone app; the TV follows whatever the phone asks for. Once TV Relay has been opened on the TV, the phone's Listen tab shows whether it found the TV and whether the TV is streaming. If the TV Relay screen is open on the TV, tapping **Listen** brings up the TV's Allow prompt for you. With **Start mode: Auto** on the TV (the button under Start streaming; it uses Android's "Display over other apps" permission), that works even while you're in another app: the prompt pops up over your show. Tapping **Stop** on the phone offers to stop the TV too, which works with TV Relay in the background. Every setting has an info button explaining what it does.
 
 ### Kodi lip sync (optional)
 
