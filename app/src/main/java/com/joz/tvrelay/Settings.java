@@ -38,6 +38,7 @@ final class Settings {
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
+    boolean kodiOnListen;  // also show the Kodi mode and adjustment on the Listen tab
     // phone side: Kodi's HTTP remote control login
     String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
     int kodiPort = 8080;
@@ -68,6 +69,7 @@ final class Settings {
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
+        s.kodiOnListen = p.getBoolean("kodiOnListen", false);
         s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
@@ -94,6 +96,7 @@ final class Settings {
                 .putInt("kodiMode", kodiMode)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
+                .putBoolean("kodiOnListen", kodiOnListen)
                 .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)

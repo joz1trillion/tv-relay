@@ -38,6 +38,10 @@ import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Phone screen: Listen (controls, stats, graph), Settings, and Kodi sync tabs. */
 public class MainActivity extends Activity {
@@ -54,8 +58,12 @@ public class MainActivity extends Activity {
     private GradientDrawable kodiStatusCard;
     private String kodiTestResult;   // last Test connection answer, shown while not listening
     private boolean kodiTestOk;
-    private TextView kodiAdjustView;
-    private SeekBar kodiSlider;
+    // Kodi mode and adjustment appear on the Kodi tab and, optionally, the Listen tab.
+    private final List<Spinner> kodiModeSpinners = new ArrayList<>();
+    private final List<SeekBar> kodiSliders = new ArrayList<>();
+    private final List<TextView> kodiAdjustViews = new ArrayList<>();
+    private LinearLayout kodiQuick;
+    private TextView tvStateView;
     private LatencyGraph graph;
     private TextView pipView;
     private TextView[] tabs;
@@ -71,6 +79,7 @@ public class MainActivity extends Activity {
                 pipView.setText(describePip());
             } else {
                 statusView.setText(describe());
+                showTvState();
                 showKodiStatus();
                 graph.invalidate();
             }
@@ -107,12 +116,17 @@ public class MainActivity extends Activity {
         }
         showTab(0);
 
-        findViewById(R.id.receive).setOnClickListener(v -> requestNotificationsThenListen());
+        findViewById(R.id.receive).setOnClickListener(v -> listen());
         findViewById(R.id.stop).setOnClickListener(v -> stopService(new Intent(this, ReceiverService.class)));
 
         buildSettings(findViewById(R.id.settingsList));
         buildKodi(findViewById(R.id.kodiList));
         buildConnectDirectly(findViewById(R.id.listenExtras));
+        tvStateView = findViewById(R.id.tvState);
+        kodiQuick = findViewById(R.id.kodiQuick);
+        header(kodiQuick, "Kodi lip sync");
+        buildKodiControls(kodiQuick);
+        kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
     }
 
     @Override
@@ -122,6 +136,7 @@ public class MainActivity extends Activity {
     }
 
     private void showTab(int index) {
+        if (kodiQuick != null) syncKodiControls();
         for (int i = 0; i < tabs.length; i++) {
             boolean on = i == index;
             pages[i].setVisibility(on ? View.VISIBLE : View.GONE);
@@ -219,20 +234,34 @@ public class MainActivity extends Activity {
         buildKodiSetup(list);
         buildKodiLogin(list);
 
-        choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
+        header(list, "Lip sync");
+        buildKodiControls(list);
+        toggle(list, "Flip direction", R.string.info_kodi_flip, settings.kodiFlip, v -> {
+            settings.kodiFlip = v;
+            ReceiverService.kodiFlip = v;
+        }, false);
+        toggle(list, "Show on Listen tab", R.string.info_kodi_on_listen, settings.kodiOnListen, v -> {
+            settings.kodiOnListen = v;
+            kodiQuick.setVisibility(v ? View.VISIBLE : View.GONE);
+        }, false);
+    }
+
+    /** Mode, adjustment slider and nudges. Built once per tab that shows them; kept in step on tab switch. */
+    private void buildKodiControls(LinearLayout list) {
+        kodiModeSpinners.add(choice(list, "Mode", R.string.info_kodi_mode, Settings.KODI_LABELS, settings.kodiMode, v -> {
             settings.kodiMode = v;
             ReceiverService.kodiMode = v;
-        }, false);
+        }, false));
 
         label(list, "Adjustment", R.string.info_kodi_adjust);
-        kodiAdjustView = text(list, "", 28);
-        kodiAdjustView.setGravity(Gravity.CENTER);
-        kodiSlider = new SeekBar(this);
+        TextView value = text(list, "", 28);
+        value.setGravity(Gravity.CENTER);
+        kodiAdjustViews.add(value);
+        SeekBar slider = new SeekBar(this);
         int steps = (Settings.KODI_ADJUST_MAX_MS - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS;
-        kodiSlider.setMax(steps);
-        kodiSlider.setProgress((settings.kodiAdjustMs - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS);
-        kodiSlider.setPadding(dp(16), dp(12), dp(16), dp(12));
-        kodiSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+        slider.setMax(steps);
+        slider.setPadding(dp(16), dp(12), dp(16), dp(12));
+        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar bar, int progress, boolean fromUser) {
                 if (fromUser) setKodiAdjust(Settings.KODI_ADJUST_MIN_MS + progress * Settings.KODI_ADJUST_STEP_MS);
@@ -240,7 +269,8 @@ public class MainActivity extends Activity {
             @Override public void onStartTrackingTouch(SeekBar bar) {}
             @Override public void onStopTrackingTouch(SeekBar bar) {}
         });
-        list.addView(kodiSlider);
+        list.addView(slider);
+        kodiSliders.add(slider);
 
         // Nudge buttons for exact 5 ms steps, which are fiddly to hit by dragging.
         LinearLayout nudges = new LinearLayout(this);
@@ -252,11 +282,14 @@ public class MainActivity extends Activity {
         scale.setGravity(Gravity.CENTER);
         scale.setAlpha(0.6f);
         showKodiAdjust();
+    }
 
-        toggle(list, "Flip direction", R.string.info_kodi_flip, settings.kodiFlip, v -> {
-            settings.kodiFlip = v;
-            ReceiverService.kodiFlip = v;
-        }, false);
+    /** The other tab's copy of the Kodi controls may be out of date. */
+    private void syncKodiControls() {
+        for (Spinner sp : kodiModeSpinners) {
+            if (sp.getSelectedItemPosition() != settings.kodiMode) sp.setSelection(settings.kodiMode, false);
+        }
+        showKodiAdjust();
     }
 
     /** What Kodi sync is and how to set it up, collapsed. The full guide is on GitHub. */
@@ -389,13 +422,15 @@ public class MainActivity extends Activity {
         settings.kodiAdjustMs = ms;
         ReceiverService.kodiAdjustMs = ms; // applied within a second, no restart
         settings.save(this);
-        kodiSlider.setProgress((ms - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS);
         showKodiAdjust();
     }
 
     private void showKodiAdjust() {
         int v = settings.kodiAdjustMs;
-        kodiAdjustView.setText((v > 0 ? "+" : "") + v + " ms");
+        for (TextView t : kodiAdjustViews) t.setText((v > 0 ? "+" : "") + v + " ms");
+        for (SeekBar sb : kodiSliders) {
+            sb.setProgress((v - Settings.KODI_ADJUST_MIN_MS) / Settings.KODI_ADJUST_STEP_MS);
+        }
     }
 
     // ---- row builders ----
@@ -445,7 +480,7 @@ public class MainActivity extends Activity {
         return row;
     }
 
-    private void choice(LinearLayout list, String title, int infoRes, String[] labels, int selected,
+    private Spinner choice(LinearLayout list, String title, int infoRes, String[] labels, int selected,
                         IntSetter setter, boolean restart) {
         label(list, title, infoRes);
         Spinner spinner = new Spinner(this);
@@ -469,6 +504,7 @@ public class MainActivity extends Activity {
             public void onNothingSelected(AdapterView<?> parent) {}
         });
         list.addView(spinner, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+        return spinner;
     }
 
     private void toggle(LinearLayout list, String title, int infoRes, boolean checked, BoolSetter setter,
@@ -507,11 +543,13 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        TvLink.start(settings.host, Settings.load(this).lastTvHost);
         handler.post(refresh);
     }
 
     @Override
     protected void onStop() {
+        TvLink.stop();
         handler.removeCallbacks(refresh);
         super.onStop();
     }
@@ -556,6 +594,19 @@ public class MainActivity extends Activity {
                 .putExtra(ReceiverService.EXTRA_HOST, settings.host));
     }
 
+    /** Listen also asks the TV to start streaming, if it's found but not streaming yet. */
+    private void listen() {
+        if (TvLink.found() && !TvLink.streaming) {
+            if (TvLink.screenOpen) {
+                TvLink.requestStart();
+                Toast.makeText(this, "Press Allow on the TV", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "Open TV Relay on the TV and press Start streaming", Toast.LENGTH_LONG).show();
+            }
+        }
+        requestNotificationsThenListen();
+    }
+
     private void requestNotificationsThenListen() {
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -571,6 +622,35 @@ public class MainActivity extends Activity {
     }
 
     // ---- status text ----
+
+    /** "● TV found · not streaming" and friends, above the stats. Works without listening. */
+    private void showTvState() {
+        boolean playing = ReceiverService.running && ReceiverService.status.startsWith("Playing");
+        boolean found = TvLink.found();
+        int color;
+        String text;
+        if (playing) {
+            color = GOOD;
+            text = "Connected · streaming";
+        } else if (found && TvLink.streaming) {
+            color = GOOD;
+            text = "TV found · streaming, tap Listen";
+        } else if (found) {
+            color = ACCENT;
+            text = TvLink.screenOpen ? "TV found · not streaming, tap Listen to start"
+                    : "TV found · not streaming. Start it on the TV";
+        } else {
+            color = Color.GRAY;
+            text = "TV not found · open TV Relay on the TV";
+        }
+        SpannableStringBuilder sb = new SpannableStringBuilder("● ");
+        sb.setSpan(new ForegroundColorSpan(color), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        sb.append(text);
+        if (found && TvLink.versionCode != Updater.versionCode(this)) {
+            sb.append("\nThe TV has a different TV Relay version: update both to the same one.");
+        }
+        tvStateView.setText(sb);
+    }
 
     private String describePip() {
         if (!ReceiverService.running) return "Stopped";

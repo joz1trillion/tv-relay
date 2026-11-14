@@ -4,14 +4,18 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.media.projection.MediaProjectionManager;
 import android.net.ConnectivityManager;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
-import android.media.projection.MediaProjectionManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -27,6 +31,8 @@ import java.util.List;
 public class TvActivity extends Activity {
     private static final int REQ_PERMS = 1;
     private static final int REQ_CAPTURE = 2;
+    static final String EXTRA_START = "start";  // the phone asked to start streaming
+    static volatile boolean visible;            // on screen, so the phone's start request can work
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Button toggle;
@@ -34,6 +40,7 @@ public class TvActivity extends Activity {
     private TextView detail;
     private TextView hint;
     private TextView ip;
+    private TextView kodi;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -61,17 +68,45 @@ public class TvActivity extends Activity {
             }
         });
         ip = findViewById(R.id.ip);
+        kodi = findViewById(R.id.kodi);
         toggle.setOnFocusChangeListener((v, focused) ->
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
 
         updates = new UpdateUi(this, findViewById(R.id.version));
+        startForegroundService(new Intent(this, LinkService.class)); // so the phone can find us from now on
+        handleStart(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleStart(intent);
+    }
+
+    private void handleStart(Intent intent) {
+        if (intent != null && intent.getBooleanExtra(EXTRA_START, false) && !SenderService.running) {
+            intent.removeExtra(EXTRA_START);
+            requestCapture();
+        }
     }
 
     @Override
     protected void onDestroy() {
         updates.destroy();
         super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        visible = true;
+    }
+
+    @Override
+    protected void onPause() {
+        visible = false;
+        super.onPause();
     }
 
     @Override
@@ -106,6 +141,11 @@ public class TvActivity extends Activity {
         }
         String address = ipAddress();
         ip.setText(address != null ? "IP address " + address : "No network");
+        boolean found = LinkService.kodiFound;
+        SpannableStringBuilder k = new SpannableStringBuilder("● ");
+        k.setSpan(new ForegroundColorSpan(found ? Color.rgb(0x34, 0xC7, 0x59) : Color.rgb(0xFF, 0x45, 0x3A)),
+                0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        kodi.setText(k.append(found ? "Kodi server found" : "Kodi server not found"));
         hint.setText(on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }

@@ -54,6 +54,14 @@ public final class Updater {
         }
     }
 
+    public static int versionCode(Context context) {
+        try {
+            return (int) context.getPackageManager().getPackageInfo(context.getPackageName(), 0).getLongVersionCode();
+        } catch (PackageManager.NameNotFoundException e) {
+            return 0;
+        }
+    }
+
     /** Every published release with an APK attached, newest first. Blocking. */
     public static List<Release> releases() throws IOException {
         HttpURLConnection c = open(RELEASES);

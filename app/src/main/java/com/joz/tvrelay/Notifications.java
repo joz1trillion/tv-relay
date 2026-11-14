@@ -17,7 +17,7 @@ final class Notifications {
         nm.createNotificationChannel(
                 new NotificationChannel(CHANNEL, "Audio relay", NotificationManager.IMPORTANCE_LOW));
 
-        Class<?> screen = service instanceof SenderService ? TvActivity.class : MainActivity.class;
+        Class<?> screen = service instanceof ReceiverService ? MainActivity.class : TvActivity.class;
         PendingIntent open = PendingIntent.getActivity(service, 0,
                 new Intent(service, screen), PendingIntent.FLAG_IMMUTABLE);
         PendingIntent stop = PendingIntent.getService(service, 1,

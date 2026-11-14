@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The TV screen's "Update" button installs new releases from GitHub. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -53,6 +54,16 @@
             android:name=".SenderService"
             android:exported="false"
             android:foregroundServiceType="mediaProjection" />
+
+        <!-- TV: answers the phone's "are you there?" while TV Relay isn't streaming. -->
+        <service
+            android:name=".LinkService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Lets the TV Relay phone app find this TV and start streaming on it" />
+        </service>
 
         <service
             android:name=".ReceiverService"

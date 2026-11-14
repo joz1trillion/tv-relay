@@ -25,7 +25,7 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 2. **TV:** open TV Relay, press **Start streaming**, and allow the recording prompt. Then press **Back to my show**.
 3. **Phone:** open TV Relay and tap **Listen**. It finds the TV automatically; if not, enter the TV's IP (shown on the TV under **Start streaming**) under **Connect directly** on the Listen tab.
 
-All settings live in the phone app; the TV follows whatever the phone asks for. Every setting has an info button explaining what it does.
+All settings live in the phone app; the TV follows whatever the phone asks for. Once TV Relay has been opened on the TV, the phone's Listen tab shows whether it found the TV and whether the TV is streaming. If the TV Relay screen is open on the TV, tapping **Listen** brings up the TV's Allow prompt for you. Every setting has an info button explaining what it does.
 
 ### Kodi lip sync (optional)
 
@@ -56,4 +56,5 @@ The APK ends up in `app/build/outputs/apk/debug/`.
 | Jitter buffer, drift correction, catch-up, concealment | `JitterBuffer.java` |
 | AudioTrack and AAudio outputs | `TrackOut.java`, `AAudioOut.java`, `jni/aaudio_out.c` |
 | Kodi JSON-RPC sync (runs on the phone) | `KodiSync.java` |
+| Phone ↔ TV status link (UDP port 48101) | `LinkService.java` (TV), `TvLink.java` (phone) |
 | Screens | `MainActivity.java` (phone), `TvActivity.java` (TV) |

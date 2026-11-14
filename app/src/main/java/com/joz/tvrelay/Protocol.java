@@ -11,9 +11,15 @@ package com.joz.tvrelay;
  *              bytes once carried Kodi sync settings: TVs before v0.7 drove Kodi, and zero keeps it off.
  *   pong:      [int PONG][long pingNanos][int 0]
  *              TV echoes the ping so the phone can measure RTT.
+ *
+ * Link (UDP LINK_PORT), answered by the TV whenever TV Relay has been opened, streaming or not:
+ *   query:     [int QUERY][long pingNanos][byte command][3 bytes 0]   command: status or start
+ *   status:    [int STATUS][long pingNanos][byte streaming][byte kodiFound][short versionCode]
+ *              [byte screenOpen][3 bytes 0]   screenOpen: TV Relay is on the TV's screen, so start can work
  */
 final class Protocol {
     static final int PORT = 48100;
+    static final int LINK_PORT = 48101;
     static final int SAMPLE_RATE = 48000;
     static final int CHANNELS = 2;
     static final int FRAMES_PER_PACKET = 240; // 5 ms
@@ -27,6 +33,12 @@ final class Protocol {
     static final int MAGIC_SUBSCRIBE = 0x54525332; // "TRS2"
     static final int MAGIC_PONG = 0x54525032;      // "TRP2"
     static final int SUBSCRIBE_BYTES = 24;
+    static final int MAGIC_QUERY = 0x54525132;     // "TRQ2"
+    static final int MAGIC_STATUS = 0x54525432;    // "TRT2"
+    static final int QUERY_BYTES = 16;
+    static final int STATUS_BYTES = 20;
+    static final byte QUERY_STATUS = 0;
+    static final byte QUERY_START = 1;
     static final int FLAG_SEND_TWICE = 1;
     // Wi-Fi loss comes in bursts, so the copy goes out 10 ms after the original, not right behind it.
     static final int RESEND_DELAY_CHUNKS = 2;

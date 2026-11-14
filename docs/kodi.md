@@ -47,6 +47,10 @@ Kodi has to be open on the TV for TV Relay to reach it. It's fine to leave it ru
 
 If moving the slider right makes the sound *later* instead of earlier, turn on **Flip direction**.
 
+Turn on **Show on Listen tab** to have Mode and Adjustment above the latency graph as well, so you can fine-tune without switching tabs.
+
+TV Relay on the TV shows a green **Kodi server found** under Start streaming when Kodi's remote control is reachable on port 8080.
+
 ## Troubleshooting
 
 | What the phone says | What to do |

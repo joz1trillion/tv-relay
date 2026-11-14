@@ -71,13 +71,30 @@
                             android:text="Stop" />
                     </LinearLayout>
 
+                    <!-- Found / streaming, from the link; works before tapping Listen. -->
+                    <TextView
+                        android:id="@+id/tvState"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
                     <TextView
                         android:id="@+id/status"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="8dp"
                         android:fontFamily="monospace"
                         android:textSize="13sp" />
+
+                    <!-- Kodi mode and adjustment, when "Show on Listen tab" is on. Built in MainActivity. -->
+                    <LinearLayout
+                        android:id="@+id/kodiQuick"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone" />
 
                     <TextView
                         style="@style/SectionHeader"
