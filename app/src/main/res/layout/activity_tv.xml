@@ -48,9 +48,19 @@
                 android:textStyle="bold" />
 
             <!-- Manual: start on the TV. Auto: the phone can start it any time ("display over other apps"). -->
-            <Button
+            <TextView
                 android:id="@+id/startMode"
-                style="@style/TvButton" />
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/tv_chip"
+                android:focusable="true"
+                android:paddingLeft="12dp"
+                android:paddingTop="6dp"
+                android:paddingRight="12dp"
+                android:paddingBottom="6dp"
+                android:textColor="@color/tv_chip_text"
+                android:textSize="16sp" />
         </LinearLayout>
 
         <LinearLayout

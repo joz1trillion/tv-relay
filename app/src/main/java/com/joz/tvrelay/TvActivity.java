@@ -45,7 +45,7 @@ public class TvActivity extends Activity {
     private TextView hint;
     private TextView ip;
     private TextView kodi;
-    private Button startMode;
+    private TextView startMode;
     private UpdateUi updates;
 
     private final Runnable refresh = new Runnable() {
@@ -77,10 +77,8 @@ public class TvActivity extends Activity {
         kodi.setOnClickListener(v -> showKodi());
         startMode = findViewById(R.id.startMode);
         startMode.setOnClickListener(v -> showStartMode());
-        for (View b : new View[]{toggle, startMode}) {
-            b.setOnFocusChangeListener((v, focused) ->
-                    v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
-        }
+        toggle.setOnFocusChangeListener((v, focused) ->
+                v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
 
         updates = new UpdateUi(this, findViewById(R.id.version));
