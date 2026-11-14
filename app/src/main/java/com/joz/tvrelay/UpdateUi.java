@@ -18,6 +18,7 @@ import android.view.Gravity;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.Switch;
+import android.widget.Toast;
 import android.widget.TextView;
 
 import java.util.List;
@@ -34,6 +35,10 @@ final class UpdateUi {
     private List<Updater.Release> releases;  // null until GitHub answered
     private Updater.Release newest;
     private long checkedAt;                  // elapsedRealtime of the last good check
+    private final Runnable onAdvancedChanged;
+    private int versionTaps;
+    private long lastVersionTap;
+    private Toast tapToast;
     private boolean installing;
     private AlertDialog progress;
 
@@ -58,9 +63,10 @@ final class UpdateUi {
         }
     };
 
-    UpdateUi(Activity activity, TextView label) {
+    UpdateUi(Activity activity, TextView label, Runnable onAdvancedChanged) {
         this.activity = activity;
         this.label = label;
+        this.onAdvancedChanged = onAdvancedChanged;
         label.setFocusable(true);
         label.setClickable(true);
         label.setOnClickListener(v -> openDialog());
@@ -145,6 +151,8 @@ final class UpdateUi {
         text.setText("You have v" + current + (Settings.isPrerelease(activity, current) ? " (pre-release)" : "") + ".\n"
                 + (newest != null ? "v" + newest.version + (newest.prerelease ? " (pre-release)" : "")
                 + " is available." : "That's the newest version.") + "\nChecked " + checkedAgo() + ".");
+        text.setFocusable(true); // reachable with a TV remote, for the advanced-mode taps
+        text.setOnClickListener(v -> onVersionTapped());
         box.addView(text);
         Switch pre = new Switch(activity);
         pre.setText("Include pre-releases");
@@ -156,6 +164,19 @@ final class UpdateUi {
         preHelp.setText("Pre-releases get new features first but are less tested.");
         preHelp.setAlpha(0.7f);
         box.addView(preHelp);
+        if (s.advancedUnlocked) {
+            Switch adv = new Switch(activity);
+            adv.setText("Advanced mode");
+            adv.setTextSize(16);
+            adv.setChecked(s.advanced);
+            adv.setPadding(0, dp(16), 0, 0);
+            adv.setOnCheckedChangeListener((v, on) -> setAdvanced(on));
+            box.addView(adv);
+            TextView advHelp = new TextView(activity);
+            advHelp.setText("Lets you switch this device between TV mode and Client mode, for when it's guessed wrong.");
+            advHelp.setAlpha(0.7f);
+            box.addView(advHelp);
+        }
 
         AlertDialog.Builder b = new AlertDialog.Builder(activity)
                 .setCustomTitle(title())
@@ -208,6 +229,40 @@ final class UpdateUi {
         long min = (SystemClock.elapsedRealtime() - checkedAt) / 60_000;
         return min < 1 ? "just now" : min == 1 ? "1 minute ago" : min < 60 ? min + " minutes ago"
                 : min / 60 == 1 ? "1 hour ago" : min / 60 + " hours ago";
+    }
+
+    /** Like Android's build number: 7 taps on the version text make you an advanced user. */
+    private void onVersionTapped() {
+        Settings s = settings();
+        if (s.advancedUnlocked) {
+            toast("You're already an advanced user.");
+            return;
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastVersionTap > 2000) versionTaps = 0;
+        lastVersionTap = now;
+        int left = 7 - ++versionTaps;
+        if (left <= 0) {
+            s.advancedUnlocked = true;
+            s.save(activity);
+            setAdvanced(true);
+            toast("You are now an advanced user!");
+        } else if (versionTaps >= 2) {
+            toast("You are " + left + (left == 1 ? " tap" : " taps") + " away from being an advanced user.");
+        }
+    }
+
+    private void setAdvanced(boolean on) {
+        Settings s = settings();
+        s.advanced = on;
+        s.save(activity);
+        if (onAdvancedChanged != null) onAdvancedChanged.run();
+    }
+
+    private void toast(String text) {
+        if (tapToast != null) tapToast.cancel();
+        tapToast = Toast.makeText(activity, text, Toast.LENGTH_SHORT);
+        tapToast.show();
     }
 
     private void pickVersion() {

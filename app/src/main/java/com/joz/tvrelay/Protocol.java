@@ -18,6 +18,7 @@ package com.joz.tvrelay;
  *              [byte screenOpen][byte canPopUp][2 bytes 0]
  *              screenOpen: TV Relay is on the TV's screen, so start can work.
  *              canPopUp: automatic start mode, TV Relay may open its screen over other apps, so start always works.
+ *              Then, from v1.3: [byte nameLength][UTF-8 TV name], so a phone can tell TVs apart.
  */
 final class Protocol {
     static final int PORT = 48100;

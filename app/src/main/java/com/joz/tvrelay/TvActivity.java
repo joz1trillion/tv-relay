@@ -19,6 +19,7 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
@@ -59,6 +60,11 @@ public class TvActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (!Settings.tvScreen(this)) {
+            startActivity(new Intent(this, MainActivity.class)); // advanced mode set this device to client
+            finish();
+            return;
+        }
         setContentView(R.layout.activity_tv);
         toggle = findViewById(R.id.toggle);
         state = findViewById(R.id.state);
@@ -81,7 +87,10 @@ public class TvActivity extends Activity {
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
 
-        updates = new UpdateUi(this, findViewById(R.id.version));
+        updates = new UpdateUi(this, findViewById(R.id.version), this::applyAdvanced);
+        ViewGroup modeRow = findViewById(R.id.modeRow);
+        modeRow.addView(ModeSwitch.build(this, 16));
+        applyAdvanced();
         startForegroundService(new Intent(this, LinkService.class)); // so the phone can find us from now on
         handleStart(getIntent());
     }
@@ -102,7 +111,7 @@ public class TvActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        updates.destroy();
+        if (updates != null) updates.destroy();
         super.onDestroy();
     }
 
@@ -207,6 +216,16 @@ public class TvActivity extends Activity {
     /** Auto start is Android's "display over other apps" permission, which this TV lets you grant in its settings. */
     private boolean autoStart() {
         return android.provider.Settings.canDrawOverlays(this);
+    }
+
+    /** Advanced mode shows the TV/Client choice; turning it off goes back to Android's own guess. */
+    private void applyAdvanced() {
+        if (!Settings.tvScreen(this)) {
+            startActivity(new Intent(this, MainActivity.class));
+            finish();
+            return;
+        }
+        findViewById(R.id.modeRow).setVisibility(Settings.load(this).advanced ? View.VISIBLE : View.GONE);
     }
 
     private void showStartMode() {

@@ -68,7 +68,12 @@ public class LinkService extends Service {
     private void linkLoop() {
         byte[] buf = new byte[64];
         ByteBuffer in = ByteBuffer.wrap(buf);
-        byte[] reply = new byte[Protocol.STATUS_BYTES];
+        // The TV's name follows the fixed part, so a phone can tell two TVs apart.
+        byte[] nameBytes = deviceName().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        int nameLen = Math.min(nameBytes.length, 40);
+        byte[] reply = new byte[Protocol.STATUS_BYTES + 1 + nameLen];
+        reply[Protocol.STATUS_BYTES] = (byte) nameLen;
+        System.arraycopy(nameBytes, 0, reply, Protocol.STATUS_BYTES + 1, nameLen);
         ByteBuffer out = ByteBuffer.wrap(reply);
         out.putInt(0, Protocol.MAGIC_STATUS);
         int versionCode = Updater.versionCode(this);
@@ -120,6 +125,12 @@ public class LinkService extends Service {
      */
     private boolean canPopUp() {
         return android.provider.Settings.canDrawOverlays(this);
+    }
+
+    /** "Living room TV" if the TV has been given a name in its settings, else the model. */
+    private String deviceName() {
+        String n = android.provider.Settings.Global.getString(getContentResolver(), "device_name");
+        return n != null && !n.isEmpty() ? n : Build.MODEL;
     }
 
     /** Every few seconds: is something answering on Kodi's port, and is it Kodi? */

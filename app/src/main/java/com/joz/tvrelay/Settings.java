@@ -21,6 +21,9 @@ final class Settings {
     static final int CATCHUP_NORMAL = 1;
     static final int CATCHUP_AGGRESSIVE = 2;
     static final String[] KODI_LABELS = {"Off", "Automatic", "Manual"};
+    static final int SCREEN_AUTO = 0;
+    static final int SCREEN_TV = 1;      // capture and send: the remote-friendly TV screen
+    static final int SCREEN_CLIENT = 2;  // listen: the phone screen
     static final int KODI_ADJUST_MIN_MS = -500;
     static final int KODI_ADJUST_MAX_MS = 1000;
     static final int KODI_ADJUST_STEP_MS = 5;
@@ -37,6 +40,10 @@ final class Settings {
     boolean pip;           // mini window; off by default since v0.10
     boolean keepTvStreaming; // phone side: Stop leaves the TV streaming, without asking
     boolean startTipShown;   // phone side: explained automatic start mode once
+    // Advanced mode: unlocked by tapping the version in the update dialog 7 times.
+    boolean advancedUnlocked;
+    boolean advanced;
+    int screenMode;          // SCREEN_AUTO, SCREEN_TV or SCREEN_CLIENT; only used with advanced on
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
@@ -70,6 +77,9 @@ final class Settings {
         s.pip = p.getBoolean("miniWindow", false); // new key: the old "pip" defaulted to on
         s.keepTvStreaming = p.getBoolean("keepTvStreaming", false);
         s.startTipShown = p.getBoolean("startTipShown", false);
+        s.advancedUnlocked = p.getBoolean("advancedUnlocked", false);
+        s.advanced = p.getBoolean("advanced", false);
+        s.screenMode = p.getInt("screenMode", SCREEN_AUTO);
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
@@ -99,6 +109,9 @@ final class Settings {
                 .putBoolean("miniWindow", pip)
                 .putBoolean("keepTvStreaming", keepTvStreaming)
                 .putBoolean("startTipShown", startTipShown)
+                .putBoolean("advancedUnlocked", advancedUnlocked)
+                .putBoolean("advanced", advanced)
+                .putInt("screenMode", screenMode)
                 .putInt("kodiMode", kodiMode)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
@@ -110,6 +123,17 @@ final class Settings {
                 .putString("host", host)
                 .putBoolean("updatePrereleases", updatePrereleases)
                 .apply();
+    }
+
+    /**
+     * Whether this device shows the TV screen. Android's own guess (TV or not) unless advanced mode
+     * is on and a mode was picked, for devices it guesses wrong.
+     */
+    static boolean tvScreen(Context c) {
+        Settings s = load(c);
+        if (s.advanced && s.screenMode != SCREEN_AUTO) return s.screenMode == SCREEN_TV;
+        return c.getSystemService(android.app.UiModeManager.class).getCurrentModeType()
+                == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION;
     }
 
     /** Written on its own so the receiver doesn't overwrite settings changed on screen meanwhile. */

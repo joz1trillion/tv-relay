@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="checkNow" type="id" />
+    <item name="modeTv" type="id" />
+    <item name="modeClient" type="id" />
 </resources>

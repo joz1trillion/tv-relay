@@ -4,7 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.PictureInPictureParams;
-import android.app.UiModeManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -66,7 +65,10 @@ public class MainActivity extends Activity {
     private final List<TextView> kodiAdjustViews = new ArrayList<>();
     private LinearLayout kodiQuick;
     private TextView tvStateView;
+    private EditText hostField;    // Connect directly, kept in step with the TV picker
     private Switch keepTvSwitch;
+    private Switch advancedRow;    // Settings switch, shown once advanced mode is unlocked
+    private TextView advancedHeader;
     private LatencyGraph graph;
     private TextView pipView;
     private TextView[] tabs;
@@ -102,14 +104,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getSystemService(UiModeManager.class).getCurrentModeType() == Configuration.UI_MODE_TYPE_TELEVISION) {
+        if (Settings.tvScreen(this)) {
             startActivity(new Intent(this, TvActivity.class)); // the TV has its own remote-friendly screen
             finish();
             return;
         }
         setContentView(R.layout.activity_main);
         settings = Settings.load(this);
-        updates = new UpdateUi(this, findViewById(R.id.version));
+        updates = new UpdateUi(this, findViewById(R.id.version), this::applyAdvanced);
         statusView = findViewById(R.id.status);
         graph = findViewById(R.id.graph);
         pipView = findViewById(R.id.pipView);
@@ -129,10 +131,31 @@ public class MainActivity extends Activity {
         buildKodi(findViewById(R.id.kodiList));
         buildConnectDirectly(findViewById(R.id.listenExtras));
         tvStateView = findViewById(R.id.tvState);
+        tvStateView.setOnClickListener(v -> pickTv());
         kodiQuick = findViewById(R.id.kodiQuick);
         buildKodiCompact(kodiQuick);
         kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
         applyPanes(getResources().getConfiguration());
+        ((ViewGroup) findViewById(R.id.modeRow)).addView(ModeSwitch.build(this, 14));
+        applyAdvanced();
+    }
+
+    /** Advanced mode shows the TV/Client choice; turning it off goes back to Android's own guess. */
+    private void applyAdvanced() {
+        if (Settings.tvScreen(this)) {
+            startActivity(new Intent(this, TvActivity.class));
+            finish();
+            return;
+        }
+        Settings fresh = Settings.load(this);
+        settings.advancedUnlocked = fresh.advancedUnlocked;
+        settings.advanced = fresh.advanced;
+        findViewById(R.id.modeRow).setVisibility(settings.advanced ? View.VISIBLE : View.GONE);
+        if (advancedRow != null) {
+            ((View) advancedRow.getParent()).setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
+            advancedHeader.setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
+            advancedRow.setChecked(settings.advanced);
+        }
     }
 
     @Override
@@ -219,6 +242,14 @@ public class MainActivity extends Activity {
         header(list, "TV");
         keepTvSwitch = toggle(list, "Keep TV streaming when I stop", R.string.info_keep_tv, settings.keepTvStreaming,
                 v -> settings.keepTvStreaming = v, false);
+
+        header(list, "Advanced");
+        advancedHeader = (TextView) list.getChildAt(list.getChildCount() - 1);
+        advancedRow = toggle(list, "Advanced mode", R.string.info_advanced, settings.advanced, v -> {
+            settings.advanced = v;
+            settings.save(this);
+            applyAdvanced();
+        }, false);
     }
 
     // ---- Listen tab extras ----
@@ -247,6 +278,7 @@ public class MainActivity extends Activity {
         TextView help = text(body, getString(R.string.info_host), 13);
         help.setAlpha(0.7f);
         EditText host = new EditText(this);
+        hostField = host;
         host.setHint("TV IP address, e.g. 192.168.1.50");
         host.setSingleLine(true);
         host.setText(settings.host);
@@ -257,6 +289,7 @@ public class MainActivity extends Activity {
             public void afterTextChanged(Editable s) {
                 settings.host = s.toString().trim();
                 settings.save(MainActivity.this);
+                TvLink.setPreferred(settings.host);
             }
         });
         body.addView(host);
@@ -785,6 +818,27 @@ public class MainActivity extends Activity {
 
     // ---- status text ----
 
+    /** With more than one TV on the network, choose which one to listen to. */
+    private void pickTv() {
+        List<TvLink.Tv> tvs = TvLink.all();
+        String[] items = new String[tvs.size() + 1];
+        items[0] = "Automatic (the first TV that answers)" + (settings.host.isEmpty() ? "  ✓" : "");
+        for (int i = 0; i < tvs.size(); i++) {
+            TvLink.Tv tv = tvs.get(i);
+            items[i + 1] = tv.label() + (tv.streaming ? " · streaming" : "")
+                    + (tv.address.equals(settings.host) ? "  ✓" : "");
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(tvs.isEmpty() ? "No TVs found yet" : "Listen to which TV?")
+                .setItems(items, (d, which) -> {
+                    String host = which == 0 ? "" : tvs.get(which - 1).address;
+                    if (hostField != null) hostField.setText(host); // saves it and tells TvLink
+                    restartReceiverIfRunning();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     /** "● TV found · not streaming" and friends, above the stats. Works without listening. */
     private void showTvState() {
         boolean playing = ReceiverService.running && ReceiverService.status.startsWith("Playing");
@@ -808,6 +862,10 @@ public class MainActivity extends Activity {
         SpannableStringBuilder sb = new SpannableStringBuilder("● ");
         sb.setSpan(new ForegroundColorSpan(color), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         sb.append(text);
+        int count = TvLink.all().size();
+        sb.append(found && TvLink.name != null ? "\n" + TvLink.name : "")
+                .append(count > 1 ? (found && TvLink.name != null ? " · " : "\n") + count + " TVs found" : "")
+                .append("  ▾");
         if (found && TvLink.versionCode != Updater.versionCode(this)) {
             sb.append("\nThe TV has a different TV Relay version: update both to the same one.");
         }
