@@ -11,8 +11,8 @@ android {
         applicationId 'com.joz.tvrelay'
         minSdk 29 // AudioPlaybackCapture needs Android 10
         targetSdk 34
-        versionCode 16
-        versionName '1.3'
+        versionCode 17
+        versionName '1.4'
         // Published as a GitHub pre-release? Shown next to the version before the app has
         // checked GitHub, so a fresh install says the same on the TV and the phone.
         buildConfigField 'boolean', 'PRERELEASE', 'true'

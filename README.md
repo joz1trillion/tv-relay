@@ -29,7 +29,7 @@ All settings live in the phone app; the TV follows whatever the phone asks for. 
 
 **More than one TV?** Tap the TV line on the Listen tab to pick which TV to listen to.
 
-**Advanced mode:** tap the version text in the update dialog 7 times. It adds *TV mode / Client mode* to the TV screen and the Listen tab, for devices the app guesses wrong (a TV box that shows the phone screen, or a tablet you want to stream from). It can be turned off again in the update dialog or under Settings → Advanced.
+**Advanced mode:** tap the version text in the update dialog 7 times. It adds *TV mode / Client mode* to the TV screen and the Listen tab, for devices the app guesses wrong (a TV box that shows the phone screen, or a tablet you want to stream from). Turning it off (Settings → Advanced, at the bottom) makes you a normal user again; on a TV in TV mode, switch to Client mode first to reach it.
 
 ### Kodi lip sync (optional)
 

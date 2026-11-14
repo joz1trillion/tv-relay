@@ -79,6 +79,7 @@ final class Settings {
         s.startTipShown = p.getBoolean("startTipShown", false);
         s.advancedUnlocked = p.getBoolean("advancedUnlocked", false);
         s.advanced = p.getBoolean("advanced", false);
+        s.advancedUnlocked &= s.advanced; // since v1.4, turning advanced mode off relocks it
         s.screenMode = p.getInt("screenMode", SCREEN_AUTO);
         s.kodiMode = p.getInt("kodiMode", 0);
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);

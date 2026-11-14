@@ -246,8 +246,12 @@ public class MainActivity extends Activity {
         header(list, "Advanced");
         advancedHeader = (TextView) list.getChildAt(list.getChildCount() - 1);
         advancedRow = toggle(list, "Advanced mode", R.string.info_advanced, settings.advanced, v -> {
-            settings.advanced = v;
+            if (v) return;
+            // Off means back to a normal user: the switch disappears until the 7 taps again.
+            settings.advanced = false;
+            settings.advancedUnlocked = false;
             settings.save(this);
+            Toast.makeText(this, "You're a normal user again.", Toast.LENGTH_SHORT).show();
             applyAdvanced();
         }, false);
     }

@@ -151,7 +151,13 @@ final class UpdateUi {
         text.setText("You have v" + current + (Settings.isPrerelease(activity, current) ? " (pre-release)" : "") + ".\n"
                 + (newest != null ? "v" + newest.version + (newest.prerelease ? " (pre-release)" : "")
                 + " is available." : "That's the newest version.") + "\nChecked " + checkedAgo() + ".");
-        text.setFocusable(true); // reachable with a TV remote, for the advanced-mode taps
+        // Reachable with a TV remote for the advanced-mode taps, and visibly so when selected.
+        text.setFocusable(true);
+        text.setBackgroundResource(R.drawable.tv_chip);
+        text.setPadding(dp(8), dp(6), dp(8), dp(6));
+        text.setTextColor(new android.content.res.ColorStateList(
+                new int[][]{{android.R.attr.state_focused}, {}},
+                new int[]{Color.WHITE, text.getCurrentTextColor()}));
         text.setOnClickListener(v -> onVersionTapped());
         box.addView(text);
         Switch pre = new Switch(activity);
@@ -164,19 +170,6 @@ final class UpdateUi {
         preHelp.setText("Pre-releases get new features first but are less tested.");
         preHelp.setAlpha(0.7f);
         box.addView(preHelp);
-        if (s.advancedUnlocked) {
-            Switch adv = new Switch(activity);
-            adv.setText("Advanced mode");
-            adv.setTextSize(16);
-            adv.setChecked(s.advanced);
-            adv.setPadding(0, dp(16), 0, 0);
-            adv.setOnCheckedChangeListener((v, on) -> setAdvanced(on));
-            box.addView(adv);
-            TextView advHelp = new TextView(activity);
-            advHelp.setText("Lets you switch this device between TV mode and Client mode, for when it's guessed wrong.");
-            advHelp.setAlpha(0.7f);
-            box.addView(advHelp);
-        }
 
         AlertDialog.Builder b = new AlertDialog.Builder(activity)
                 .setCustomTitle(title())
@@ -244,19 +237,13 @@ final class UpdateUi {
         int left = 7 - ++versionTaps;
         if (left <= 0) {
             s.advancedUnlocked = true;
+            s.advanced = true;
             s.save(activity);
-            setAdvanced(true);
+            if (onAdvancedChanged != null) onAdvancedChanged.run();
             toast("You are now an advanced user!");
         } else if (versionTaps >= 2) {
             toast("You are " + left + (left == 1 ? " tap" : " taps") + " away from being an advanced user.");
         }
-    }
-
-    private void setAdvanced(boolean on) {
-        Settings s = settings();
-        s.advanced = on;
-        s.save(activity);
-        if (onAdvancedChanged != null) onAdvancedChanged.run();
     }
 
     private void toast(String text) {
