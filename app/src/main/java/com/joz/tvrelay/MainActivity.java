@@ -243,24 +243,22 @@ public class MainActivity extends Activity {
         choice(list, "Catch-up after a delay spike", R.string.info_catchup, Settings.CATCHUP_LABELS,
                 settings.catchup, v -> settings.catchup = v, true);
 
-        // Everything else is tucked away: most people never need it.
-        header(list, "More");
+        // Everything else is tucked away behind a section header that is itself the switch.
         LinearLayout adv = new LinearLayout(this);
         adv.setOrientation(LinearLayout.VERTICAL);
         adv.setVisibility(settings.showAdvanced ? View.VISIBLE : View.GONE);
-        toggle(list, "Advanced settings", R.string.info_show_advanced, settings.showAdvanced, v -> {
+        Switch advSwitch = toggle(list, "Advanced settings", R.string.info_show_advanced, settings.showAdvanced, v -> {
             settings.showAdvanced = v;
             adv.setVisibility(v ? View.VISIBLE : View.GONE);
         }, false);
+        styleAsHeader((LinearLayout) advSwitch.getParent());
         list.addView(adv);
         list = adv;
 
-        toggle(list, "Exclusive mode", R.string.info_exclusive, settings.exclusive,
-                v -> settings.exclusive = v, true);
-
-        header(list, "Wi-Fi");
-        toggle(list, "Send every packet twice", R.string.info_send_twice, settings.sendTwice,
-                v -> settings.sendTwice = v, true);
+        toggle(list, "Kodi sync", R.string.info_kodi_enabled, settings.kodiEnabled, v -> {
+            settings.kodiEnabled = v;
+            applyKodiEnabled();
+        }, false);
         toggle(list, "Keep screen on", R.string.info_keep_screen_on, settings.keepScreenOn,
                 v -> settings.keepScreenOn = v, false);
         toggle(list, "Mini window", R.string.info_pip, settings.pip, v -> {
@@ -283,16 +281,14 @@ public class MainActivity extends Activity {
                         .show();
             }
         }, false);
-
-        header(list, "TV");
         keepTvSwitch = toggle(list, "Keep TV streaming when I stop", R.string.info_keep_tv, settings.keepTvStreaming,
                 v -> settings.keepTvStreaming = v, false);
 
-        header(list, "Kodi");
-        toggle(list, "Kodi sync", R.string.info_kodi_enabled, settings.kodiEnabled, v -> {
-            settings.kodiEnabled = v;
-            applyKodiEnabled();
-        }, false);
+        header(list, "Experimental");
+        toggle(list, "Send every packet twice", R.string.info_send_twice, settings.sendTwice,
+                v -> settings.sendTwice = v, true);
+        toggle(list, "Exclusive mode", R.string.info_exclusive, settings.exclusive,
+                v -> settings.exclusive = v, true);
 
         list = (LinearLayout) adv.getParent(); // the developer switch sits below, only once unlocked
         header(list, "Advanced mode");
@@ -700,6 +696,15 @@ public class MainActivity extends Activity {
         t.setTypeface(Typeface.DEFAULT_BOLD);
         t.setTextColor(ACCENT);
         t.setPadding(0, list.getChildCount() == 0 ? 0 : dp(24), 0, dp(4));
+    }
+
+    /** Makes a label row look like a section header (blue, bold), for a header with its own switch. */
+    private void styleAsHeader(LinearLayout row) {
+        TextView t = (TextView) row.getChildAt(0);
+        t.setTextSize(18);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setTextColor(ACCENT);
+        row.setPadding(0, dp(24), 0, 0);
     }
 
     /** A label with its ℹ️ button; returns the row so a control can be added beside it. */
