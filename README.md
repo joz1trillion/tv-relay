@@ -27,9 +27,9 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 
 All settings live in the phone app; the TV follows whatever the phone asks for. Once TV Relay has been opened on the TV, the phone's Listen tab shows whether it found the TV and whether the TV is streaming. If the TV Relay screen is open on the TV, tapping **Listen** brings up the TV's Allow prompt for you. With **Start mode: Auto** on the TV (the button under Start streaming; it uses Android's "Display over other apps" permission), that works even while you're in another app: the prompt pops up over your show. Tapping **Stop** on the phone offers to stop the TV too, which works with TV Relay in the background. Every setting has an info button explaining what it does.
 
-**More than one TV?** Tap the **TV** selector on the Listen tab to pick which TV to listen to.
+**More than one TV?** Tap the **TV** selector on the Stream tab to pick which TV to listen to.
 
-**Advanced mode:** tap the version text in the update dialog 7 times. It adds *TV mode / Client mode* to the TV screen and the Listen tab, for devices the app guesses wrong (a TV box that shows the phone screen, or a tablet you want to stream from). It also adds a **Stream** button next to Listen and Stop, so any device can send its own audio. A device in Client mode doesn't show up as a TV unless it's streaming. Turning it off (Settings → Advanced, at the bottom) makes you a normal user again; on a TV in TV mode, switch to Client mode first to reach it.
+**Device mode:** if the app guesses wrong whether a device is a TV, pick **TV mode** or **Client mode** with the gear on the TV screen, or under Settings → Advanced settings → Device mode on the phone. With Advanced settings on, the phone also gets a **Stream** button, so any device can send its own audio.
 
 ### Kodi lip sync (optional)
 

@@ -62,13 +62,6 @@
                 android:textColor="@color/tv_chip_text"
                 android:textSize="16sp" />
 
-            <!-- Advanced mode only: TV mode / Client mode radio buttons, built by ModeSwitch. -->
-            <FrameLayout
-                android:id="@+id/modeRow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout
@@ -109,6 +102,20 @@
                 android:textSize="20sp" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- TV settings: device mode and start mode. -->
+    <ImageView
+        android:id="@+id/settings"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="16dp"
+        android:layout_marginRight="6dp"
+        android:background="@drawable/tv_chip"
+        android:contentDescription="Settings"
+        android:focusable="true"
+        android:padding="12dp"
+        android:src="@drawable/ic_settings" />
 
     <LinearLayout
         android:layout_width="wrap_content"

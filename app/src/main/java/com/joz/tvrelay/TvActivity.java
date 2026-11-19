@@ -19,8 +19,8 @@ import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.net.Inet4Address;
@@ -61,7 +61,7 @@ public class TvActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (!Settings.tvScreen(this)) {
-            startActivity(new Intent(this, MainActivity.class)); // advanced mode set this device to client
+            startActivity(new Intent(this, MainActivity.class)); // Device mode set this device to client
             finish();
             return;
         }
@@ -87,10 +87,8 @@ public class TvActivity extends Activity {
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
 
-        updates = new UpdateUi(this, findViewById(R.id.version), this::applyAdvanced);
-        ViewGroup modeRow = findViewById(R.id.modeRow);
-        modeRow.addView(ModeSwitch.build(this, 16));
-        applyAdvanced();
+        updates = new UpdateUi(this, findViewById(R.id.version));
+        findViewById(R.id.settings).setOnClickListener(v -> showSettings());
         startForegroundService(new Intent(this, LinkService.class)); // so the phone can find us from now on
         handleStart(getIntent());
     }
@@ -157,6 +155,11 @@ public class TvActivity extends Activity {
             state.setText("Streaming to " + n + (n == 1 ? " phone" : " phones"));
             detail.setText(SenderService.format);
         }
+        if (on && !s.startsWith("Error")) { // red "live" dot while capturing
+            SpannableStringBuilder live = new SpannableStringBuilder("● ");
+            live.setSpan(new ForegroundColorSpan(Color.rgb(0xFF, 0x45, 0x3A)), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            state.setText(live.append(state.getText()));
+        }
         String address = ipAddress();
         ip.setText(address != null ? "IP address " + address : "No network");
         startMode.setText("Start mode: " + (autoStart() ? "Auto" : "Manual"));
@@ -219,14 +222,35 @@ public class TvActivity extends Activity {
         return android.provider.Settings.canDrawOverlays(this);
     }
 
-    /** Advanced mode shows the TV/Client choice; turning it off goes back to Android's own guess. */
-    private void applyAdvanced() {
-        if (!Settings.tvScreen(this)) {
-            startActivity(new Intent(this, MainActivity.class));
-            finish();
-            return;
-        }
-        findViewById(R.id.modeRow).setVisibility(Settings.load(this).advanced ? View.VISIBLE : View.GONE);
+    /** The gear: Device mode (this TV, or a client for devices Android guesses wrong) and Start mode. */
+    private void showSettings() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (24 * getResources().getDisplayMetrics().density);
+        box.setPadding(pad, pad / 2, pad, 0);
+        TextView modeLabel = new TextView(this);
+        modeLabel.setText("Device mode");
+        modeLabel.setTextSize(18);
+        box.addView(modeLabel);
+        box.addView(ModeSwitch.build(this, 18));
+        TextView modeHelp = new TextView(this);
+        modeHelp.setText("TV mode sends this TV's sound to your phone. Client mode makes this device listen instead, "
+                + "like a phone.");
+        modeHelp.setAlpha(0.7f);
+        box.addView(modeHelp);
+        Button start = new Button(this);
+        start.setText("Start mode: " + (autoStart() ? "Auto" : "Manual"));
+        start.setAllCaps(false);
+        start.setOnClickListener(v -> showStartMode());
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad / 2;
+        box.addView(start, lp);
+        new AlertDialog.Builder(this)
+                .setTitle("Settings")
+                .setView(box)
+                .setPositiveButton("Close", null)
+                .show();
     }
 
     private void showStartMode() {

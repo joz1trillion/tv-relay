@@ -70,8 +70,6 @@ public class MainActivity extends Activity {
     private TextView tvPicker;
     private EditText hostField;    // Connect directly, kept in step with the TV picker
     private Switch keepTvSwitch;
-    private Switch advancedRow;    // Settings switch, shown once advanced mode is unlocked
-    private TextView advancedHeader;
     private LatencyGraph graph;
     private TextView pipView;
     private TextView[] tabs;
@@ -115,7 +113,7 @@ public class MainActivity extends Activity {
         }
         setContentView(R.layout.activity_main);
         settings = Settings.load(this);
-        updates = new UpdateUi(this, findViewById(R.id.version), this::applyAdvanced);
+        updates = new UpdateUi(this, findViewById(R.id.version));
         statusView = findViewById(R.id.status);
         graph = findViewById(R.id.graph);
         pipView = findViewById(R.id.pipView);
@@ -148,27 +146,12 @@ public class MainActivity extends Activity {
         buildKodiCompact(kodiQuick);
         applyPanes(getResources().getConfiguration());
         applyKodiEnabled();
-        ((ViewGroup) findViewById(R.id.modeRow)).addView(ModeSwitch.build(this, 14));
-        applyAdvanced();
+        applyStreamButton();
     }
 
-    /** Advanced mode shows the TV/Client choice; turning it off goes back to Android's own guess. */
-    private void applyAdvanced() {
-        if (Settings.tvScreen(this)) {
-            startActivity(new Intent(this, TvActivity.class));
-            finish();
-            return;
-        }
-        Settings fresh = Settings.load(this);
-        settings.advancedUnlocked = fresh.advancedUnlocked;
-        settings.advanced = fresh.advanced;
-        findViewById(R.id.modeRow).setVisibility(settings.advanced ? View.VISIBLE : View.GONE);
-        findViewById(R.id.stream).setVisibility(settings.advanced ? View.VISIBLE : View.GONE);
-        if (advancedRow != null) {
-            ((View) advancedRow.getParent()).setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
-            advancedHeader.setVisibility(settings.advancedUnlocked ? View.VISIBLE : View.GONE);
-            advancedRow.setChecked(settings.advanced);
-        }
+    /** Stream (send this device's own audio) is an advanced feature: shown with Advanced settings on. */
+    private void applyStreamButton() {
+        findViewById(R.id.stream).setVisibility(settings.showAdvanced ? View.VISIBLE : View.GONE);
     }
 
     @Override
@@ -250,6 +233,7 @@ public class MainActivity extends Activity {
         Switch advSwitch = toggle(list, "Advanced settings", R.string.info_show_advanced, settings.showAdvanced, v -> {
             settings.showAdvanced = v;
             adv.setVisibility(v ? View.VISIBLE : View.GONE);
+            applyStreamButton();
         }, false);
         styleAsHeader((LinearLayout) advSwitch.getParent());
         list.addView(adv);
@@ -284,24 +268,16 @@ public class MainActivity extends Activity {
         keepTvSwitch = toggle(list, "Keep TV streaming when I stop", R.string.info_keep_tv, settings.keepTvStreaming,
                 v -> settings.keepTvStreaming = v, false);
 
+        // For devices Android guesses wrong: a TV box that shows the phone screen, or a tablet to stream from.
+        header(list, "Device mode");
+        list.addView(ModeSwitch.build(this, 15));
+
         header(list, "Experimental");
         toggle(list, "Send every packet twice", R.string.info_send_twice, settings.sendTwice,
                 v -> settings.sendTwice = v, true);
         toggle(list, "Exclusive mode", R.string.info_exclusive, settings.exclusive,
                 v -> settings.exclusive = v, true);
 
-        list = (LinearLayout) adv.getParent(); // the developer switch sits below, only once unlocked
-        header(list, "Advanced mode");
-        advancedHeader = (TextView) list.getChildAt(list.getChildCount() - 1);
-        advancedRow = toggle(list, "Advanced mode", R.string.info_advanced, settings.advanced, v -> {
-            if (v) return;
-            // Off means back to a normal user: the switch disappears until the 7 taps again.
-            settings.advanced = false;
-            settings.advancedUnlocked = false;
-            settings.save(this);
-            Toast.makeText(this, "You're a normal user again.", Toast.LENGTH_SHORT).show();
-            applyAdvanced();
-        }, false);
     }
 
     // ---- Listen tab extras ----
@@ -886,7 +862,7 @@ public class MainActivity extends Activity {
     /** Stop listening; if the TV is still streaming, offer to stop it too (unless told to keep it). */
     private void stopListening() {
         stopService(new Intent(this, ReceiverService.class));
-        if (SenderService.running) { // advanced: this device was streaming too
+        if (SenderService.running) { // this device was streaming too (Stream button)
             stopService(new Intent(this, SenderService.class));
             if (!Settings.tvScreen(this)) stopService(new Intent(this, LinkService.class));
         }
@@ -967,7 +943,7 @@ public class MainActivity extends Activity {
     }
 
     /**
-     * Advanced mode: this device streams its own audio like a TV, for a device the app took for a
+     * Stream button (Advanced settings): this device streams its own audio like a TV, for a device the app took for a
      * phone, or to send a phone's audio to another device. Same capture prompt as on the TV.
      */
     private void streamFromHere() {

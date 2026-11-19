@@ -42,10 +42,7 @@ final class Settings {
     boolean pip;           // mini window; off by default since v0.10
     boolean keepTvStreaming; // phone side: Stop leaves the TV streaming, without asking
     boolean startTipShown;   // phone side: explained automatic start mode once
-    // Advanced mode: unlocked by tapping the version in the update dialog 7 times.
-    boolean advancedUnlocked;
-    boolean advanced;
-    int screenMode;          // SCREEN_AUTO, SCREEN_TV or SCREEN_CLIENT; only used with advanced on
+    int screenMode;          // SCREEN_AUTO (Android's guess), SCREEN_TV or SCREEN_CLIENT: "Device mode"
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
@@ -81,10 +78,9 @@ final class Settings {
         s.pip = p.getBoolean("miniWindow", false); // new key: the old "pip" defaulted to on
         s.keepTvStreaming = p.getBoolean("keepTvStreaming", false);
         s.startTipShown = p.getBoolean("startTipShown", false);
-        s.advancedUnlocked = p.getBoolean("advancedUnlocked", false);
-        s.advanced = p.getBoolean("advanced", false);
-        s.advancedUnlocked &= s.advanced; // since v1.4, turning advanced mode off relocks it
         s.screenMode = p.getInt("screenMode", SCREEN_AUTO);
+        // Before v2.0 the choice only counted while the 7-tap advanced mode was on.
+        if (!p.contains("screenModeV2") && !p.getBoolean("advanced", false)) s.screenMode = SCREEN_AUTO;
         s.kodiMode = p.getInt("kodiMode", 0);
         // v1.7: Automatic now always follows; the gentler at-pause behaviour became its own mode
         // and the default, which is what Automatic did in v1.6.
@@ -120,9 +116,8 @@ final class Settings {
                 .putBoolean("miniWindow", pip)
                 .putBoolean("keepTvStreaming", keepTvStreaming)
                 .putBoolean("startTipShown", startTipShown)
-                .putBoolean("advancedUnlocked", advancedUnlocked)
-                .putBoolean("advanced", advanced)
                 .putInt("screenMode", screenMode)
+                .putBoolean("screenModeV2", true)
                 .putInt("kodiMode", kodiMode)
                 .putBoolean("kodiModeV2", true)
                 .putInt("kodiAdjustMs", kodiAdjustMs)
@@ -140,12 +135,12 @@ final class Settings {
     }
 
     /**
-     * Whether this device shows the TV screen. Android's own guess (TV or not) unless advanced mode
-     * is on and a mode was picked, for devices it guesses wrong.
+     * Whether this device shows the TV screen. Android's own guess (TV or not) unless a Device mode
+     * was picked, for devices it guesses wrong.
      */
     static boolean tvScreen(Context c) {
         Settings s = load(c);
-        if (s.advanced && s.screenMode != SCREEN_AUTO) return s.screenMode == SCREEN_TV;
+        if (s.screenMode != SCREEN_AUTO) return s.screenMode == SCREEN_TV;
         return c.getSystemService(android.app.UiModeManager.class).getCurrentModeType()
                 == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION;
     }

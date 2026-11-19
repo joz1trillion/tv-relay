@@ -57,7 +57,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-                    <TextView android:id="@+id/tabListen" style="@style/Tab" android:text="Listen" />
+                    <TextView android:id="@+id/tabListen" style="@style/Tab" android:text="Stream" />
                     <TextView android:id="@+id/tabSettings" style="@style/Tab" android:text="Settings" />
                     <TextView android:id="@+id/tabKodi" style="@style/Tab" android:text="Kodi sync" />
                 </LinearLayout>
@@ -79,14 +79,6 @@
                             android:orientation="vertical"
                             android:padding="20dp">
 
-                            <!-- Advanced mode only: TV mode / Client mode radio buttons, built by ModeSwitch. -->
-                            <FrameLayout
-                                android:id="@+id/modeRow"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginBottom="8dp"
-                                android:visibility="gone" />
-
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -100,7 +92,7 @@
                                     android:minHeight="56dp"
                                     android:text="Listen" />
 
-                                <!-- Advanced mode only: stream this device's audio, like a TV does. -->
+                                <!-- With Advanced settings on: stream this device's audio, like a TV does. -->
                                 <Button
                                     android:id="@+id/stream"
                                     android:layout_width="0dp"
