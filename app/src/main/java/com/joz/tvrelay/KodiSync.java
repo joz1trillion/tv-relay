@@ -30,7 +30,6 @@ final class KodiSync {
     static volatile int state = Protocol.KODI_STATE_OFF;
     static volatile int appliedMs;
     static volatile int pendingMs = Integer.MIN_VALUE; // what the next sync would set, if different
-    private static volatile boolean syncRequested;
 
     private final Context context;
     private volatile String host;  // the TV's IP, once the receiver knows it
@@ -63,11 +62,6 @@ final class KodiSync {
         port = s.kodiPort;
         auth = s.kodiUser.isEmpty() ? null : "Basic " + Base64.encodeToString(
                 (s.kodiUser + ":" + s.kodiPass).getBytes(StandardCharsets.UTF_8), Base64.NO_WRAP);
-    }
-
-    /** The phone's Sync now button: apply the current delay on the next tick, mid-video or not. */
-    static void requestSync() {
-        syncRequested = true;
     }
 
     void setHost(String host) {
@@ -151,13 +145,11 @@ final class KodiSync {
         target = Math.max(-10, Math.min(10, target));
         // Every change makes Kodi catch the picture up (it skips frames for a moment). Automatic
         // follows the measured delay once it moves by ~50 ms; at-pause mode only at the start of a
-        // video, while paused, or on Sync now. The user's own adjustments apply straight away.
+        // video or while paused. The user's own adjustments apply straight away.
         double threshold = m == Protocol.KODI_AUTO ? AUTO_HYSTERESIS : STEP / 2;
         boolean differs = Double.isNaN(applied) || Math.abs(target - applied) >= threshold;
         boolean userChange = adjustMs != appliedAdjust || flip != appliedFlip || m != appliedMode;
-        boolean syncNow = syncRequested;
-        syncRequested = false;
-        if (newItem || Double.isNaN(applied) || (differs && (userChange || syncNow || m == Protocol.KODI_AUTO
+        if (newItem || Double.isNaN(applied) || (differs && (userChange || m == Protocol.KODI_AUTO
                 || (m == Protocol.KODI_AUTO_PAUSE && isPaused(player))))) {
             setDelay(player, target);
             applied = target;

@@ -8,7 +8,7 @@ One APK runs on both ends. The TV captures what other apps are playing (Plex, Ko
 
 - **Low latency:** uncompressed PCM in 5 ms packets, a small adaptive jitter buffer, Android's fast audio path, and optional AAudio exclusive (MMAP) output.
 - **Fewer skips:** Wi-Fi low-latency/high-performance locks on both devices, packets marked as voice traffic (WMM), optional "send every packet twice" redundancy, and packet-loss concealment.
-- **Clock drift and spike recovery:** inaudible resampling for drift, plus Gentle / Normal / Aggressive catch-up after Wi-Fi spikes.
+- **Clock drift and spike recovery:** inaudible resampling for drift, plus Gentle / Fast / Instant catch-up after Wi-Fi spikes.
 - **Optional Opus compression** (96–256 kbps) for weak Wi-Fi.
 - **Live latency graph** split into network, codec, buffer and output delay.
 - **Kodi lip sync:** with Kodi 21+ on the TV, TV Relay sets Kodi's audio delay over JSON-RPC so the sound on your phone lines up with the picture. Automatic or manual, with 5 ms precision.
@@ -35,7 +35,7 @@ All settings live in the phone app; the TV follows whatever the phone asks for. 
 
 1. Install Kodi 21 or newer on the TV from the Play Store.
 2. In Kodi on the TV: Settings → Services → Control → **Allow remote control via HTTP**, and set a password.
-3. On the phone: **Kodi sync** tab → open **Kodi login**, enter the same port, username and password, and tap **Test connection**.
+3. On the phone: turn on **Settings → Advanced settings → Kodi sync**, then in the **Kodi sync** tab open **Kodi login**, enter the same port, username and password, and tap **Test connection**.
 4. Tap **Listen**, set Mode to **Automatic**, then fine-tune with the slider.
 
 New to Kodi? The [full Kodi guide](docs/kodi.md) covers installing it, getting Plex or Jellyfin into it, and troubleshooting.

@@ -65,7 +65,6 @@ public class MainActivity extends Activity {
     private final List<Spinner> kodiModeSpinners = new ArrayList<>();
     private final List<SeekBar> kodiSliders = new ArrayList<>();
     private final List<TextView> kodiAdjustViews = new ArrayList<>();
-    private final List<Button> kodiSyncButtons = new ArrayList<>();
     private LinearLayout kodiQuick;
     private TextView tvStateView;
     private TextView tvPicker;
@@ -95,6 +94,7 @@ public class MainActivity extends Activity {
                 showKodiStatus();
                 graph.invalidate();
             }
+            updatePipParams();
             // Android only keeps Wi-Fi in low-latency mode while the screen is on and we're in front.
             if (settings.keepScreenOn && ReceiverService.running) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -146,8 +146,8 @@ public class MainActivity extends Activity {
         findViewById(R.id.stream).setOnClickListener(v -> streamFromHere());
         kodiQuick = findViewById(R.id.kodiQuick);
         buildKodiCompact(kodiQuick);
-        kodiQuick.setVisibility(settings.kodiOnListen ? View.VISIBLE : View.GONE);
         applyPanes(getResources().getConfiguration());
+        applyKodiEnabled();
         ((ViewGroup) findViewById(R.id.modeRow)).addView(ModeSwitch.build(this, 14));
         applyAdvanced();
     }
@@ -240,23 +240,62 @@ public class MainActivity extends Activity {
                 v -> settings.buffer = v, true);
         choice(list, "Output path", R.string.info_output, Settings.OUTPUT_LABELS, settings.output,
                 v -> settings.output = v, true);
-        toggle(list, "Exclusive mode", R.string.info_exclusive, settings.exclusive,
-                v -> settings.exclusive = v, true);
         choice(list, "Catch-up after a delay spike", R.string.info_catchup, Settings.CATCHUP_LABELS,
                 settings.catchup, v -> settings.catchup = v, true);
+
+        // Everything else is tucked away: most people never need it.
+        header(list, "More");
+        LinearLayout adv = new LinearLayout(this);
+        adv.setOrientation(LinearLayout.VERTICAL);
+        adv.setVisibility(settings.showAdvanced ? View.VISIBLE : View.GONE);
+        toggle(list, "Advanced settings", R.string.info_show_advanced, settings.showAdvanced, v -> {
+            settings.showAdvanced = v;
+            adv.setVisibility(v ? View.VISIBLE : View.GONE);
+        }, false);
+        list.addView(adv);
+        list = adv;
+
+        toggle(list, "Exclusive mode", R.string.info_exclusive, settings.exclusive,
+                v -> settings.exclusive = v, true);
 
         header(list, "Wi-Fi");
         toggle(list, "Send every packet twice", R.string.info_send_twice, settings.sendTwice,
                 v -> settings.sendTwice = v, true);
         toggle(list, "Keep screen on", R.string.info_keep_screen_on, settings.keepScreenOn,
                 v -> settings.keepScreenOn = v, false);
-        toggle(list, "Mini window", R.string.info_pip, settings.pip, v -> settings.pip = v, false);
+        toggle(list, "Mini window", R.string.info_pip, settings.pip, v -> {
+            settings.pip = v;
+            if (v && !pipAllowed()) {
+                new AlertDialog.Builder(this)
+                        .setTitle("Allow the mini window")
+                        .setMessage("Picture-in-picture is switched off for TV Relay in Android's settings. "
+                                + "Turn it on there for the mini window to work.")
+                        .setPositiveButton("Open settings", (d, w) -> {
+                            try {
+                                startActivity(new Intent("android.settings.PICTURE_IN_PICTURE_SETTINGS",
+                                        Uri.parse("package:" + getPackageName())));
+                            } catch (Exception e) {
+                                startActivity(new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:" + getPackageName())));
+                            }
+                        })
+                        .setNegativeButton("Not now", null)
+                        .show();
+            }
+        }, false);
 
         header(list, "TV");
         keepTvSwitch = toggle(list, "Keep TV streaming when I stop", R.string.info_keep_tv, settings.keepTvStreaming,
                 v -> settings.keepTvStreaming = v, false);
 
-        header(list, "Advanced");
+        header(list, "Kodi");
+        toggle(list, "Kodi sync", R.string.info_kodi_enabled, settings.kodiEnabled, v -> {
+            settings.kodiEnabled = v;
+            applyKodiEnabled();
+        }, false);
+
+        list = (LinearLayout) adv.getParent(); // the developer switch sits below, only once unlocked
+        header(list, "Advanced mode");
         advancedHeader = (TextView) list.getChildAt(list.getChildCount() - 1);
         advancedRow = toggle(list, "Advanced mode", R.string.info_advanced, settings.advanced, v -> {
             if (v) return;
@@ -344,7 +383,7 @@ public class MainActivity extends Activity {
         }, false);
         toggle(list, "Show on Listen tab", R.string.info_kodi_on_listen, settings.kodiOnListen, v -> {
             settings.kodiOnListen = v;
-            kodiQuick.setVisibility(v ? View.VISIBLE : View.GONE);
+            kodiQuick.setVisibility(v && settings.kodiEnabled ? View.VISIBLE : View.GONE);
         }, false);
     }
 
@@ -396,36 +435,21 @@ public class MainActivity extends Activity {
         TextView scale = text(list, "← sound later          sound earlier →", 13);
         scale.setGravity(Gravity.CENTER);
         scale.setAlpha(0.6f);
-        Button sync = new Button(this);
-        sync.setText("Sync now");
-        sync.setAllCaps(false);
-        sync.setOnClickListener(v -> syncKodiNow());
-        list.addView(sync);
-        kodiSyncButtons.add(sync);
         showKodiAdjust();
+    }
+
+    /** Kodi sync off hides the Kodi tab and Listen-tab controls, and stops touching Kodi. */
+    private void applyKodiEnabled() {
+        boolean on = settings.kodiEnabled;
+        ReceiverService.kodiMode = on ? settings.kodiMode : Protocol.KODI_OFF;
+        tabs[2].setVisibility(on ? View.VISIBLE : View.GONE);
+        kodiQuick.setVisibility(on && settings.kodiOnListen ? View.VISIBLE : View.GONE);
+        if (!on && currentTab == 2) showTab(1);
     }
 
     private void setKodiMode(int mode) {
         settings.kodiMode = mode;
-        ReceiverService.kodiMode = mode;
-        showSyncButtons();
-    }
-
-    /** Sync now only means something in "Automatic, at pause": the other modes apply at once. */
-    private void showSyncButtons() {
-        for (Button b : kodiSyncButtons) {
-            b.setVisibility(settings.kodiMode == Protocol.KODI_AUTO_PAUSE ? View.VISIBLE : View.GONE);
-        }
-    }
-
-    /** Apply the measured delay to Kodi right away, mid-video; Kodi catches the picture up once. */
-    private void syncKodiNow() {
-        if (!ReceiverService.running) {
-            Toast.makeText(this, "Tap Listen first", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        KodiSync.requestSync();
-        Toast.makeText(this, "Syncing Kodi", Toast.LENGTH_SHORT).show();
+        ReceiverService.kodiMode = settings.kodiEnabled ? mode : Protocol.KODI_OFF;
     }
 
     /** Two-row version of the Kodi controls for the Listen tab: mode and value, then − slider +. */
@@ -463,12 +487,6 @@ public class MainActivity extends Activity {
         value.setOnClickListener(v -> setKodiAdjust(0));
         top.addView(value);
         kodiAdjustViews.add(value);
-        Button sync = new Button(this, null, android.R.attr.borderlessButtonStyle);
-        sync.setText("Sync");
-        sync.setAllCaps(false);
-        sync.setOnClickListener(v -> syncKodiNow());
-        top.addView(sync);
-        kodiSyncButtons.add(sync);
         list.addView(top);
 
         LinearLayout bottom = new LinearLayout(this);
@@ -522,7 +540,6 @@ public class MainActivity extends Activity {
         for (Spinner sp : kodiModeSpinners) {
             if (sp.getSelectedItemPosition() != position) sp.setSelection(position, false);
         }
-        showSyncButtons();
         showKodiAdjust();
     }
 
@@ -797,13 +814,44 @@ public class MainActivity extends Activity {
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
+        if (Build.VERSION.SDK_INT >= 31) return; // auto-enter handles it, see updatePipParams()
         if (!settings.pip || !ReceiverService.running) return;
         try {
-            enterPictureInPictureMode(new PictureInPictureParams.Builder()
-                    .setAspectRatio(new Rational(16, 9)).build());
+            enterPictureInPictureMode(pipParams(false));
         } catch (IllegalStateException ignored) {
             // PiP turned off for this app in system settings
         }
+    }
+
+    private PictureInPictureParams pipParams(boolean autoEnter) {
+        PictureInPictureParams.Builder b = new PictureInPictureParams.Builder().setAspectRatio(new Rational(16, 9));
+        if (Build.VERSION.SDK_INT >= 31) b.setAutoEnterEnabled(autoEnter).setSeamlessResizeEnabled(false);
+        return b.build();
+    }
+
+    private Boolean pipArmed;  // what the system was last told, so it's only told on changes
+
+    /**
+     * Android 12+ shrinks the app to the mini window by itself when you go home, if told in advance.
+     * Entering at the last moment from onUserLeaveHint often loses the race with gesture navigation.
+     */
+    private void updatePipParams() {
+        if (Build.VERSION.SDK_INT < 31) return;
+        boolean want = settings.pip && ReceiverService.running;
+        if (pipArmed != null && pipArmed == want) return;
+        pipArmed = want;
+        try {
+            setPictureInPictureParams(pipParams(want));
+        } catch (IllegalStateException ignored) {
+            // PiP turned off for this app in system settings
+        }
+    }
+
+    /** True unless picture-in-picture is switched off for TV Relay in Android's settings. */
+    private boolean pipAllowed() {
+        android.app.AppOpsManager ops = getSystemService(android.app.AppOpsManager.class);
+        return ops.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_PICTURE_IN_PICTURE,
+                android.os.Process.myUid(), getPackageName()) == android.app.AppOpsManager.MODE_ALLOWED;
     }
 
     @Override
@@ -1035,7 +1083,7 @@ public class MainActivity extends Activity {
             case Protocol.KODI_STATE_APPLIED:
                 return "Kodi audio delay " + KodiSync.appliedMs + " ms"
                         + (KodiSync.pendingMs != Integer.MIN_VALUE
-                        ? " · " + KodiSync.pendingMs + " ms at the next pause or Sync now" : "");
+                        ? " · " + KodiSync.pendingMs + " ms at the next pause" : "");
             case Protocol.KODI_STATE_UNREACHABLE: return "Can't reach Kodi: is it open, with HTTP remote control on?";
             case Protocol.KODI_STATE_AUTH: return "Kodi says the username or password is wrong";
             default: return "Waiting for the TV…";
@@ -1062,7 +1110,7 @@ public class MainActivity extends Activity {
                     .append("  saved by copy ").append(ReceiverService.recovered)
                     .append("\noutput: ").append(ReceiverService.outputInfo)
                     .append(", ").append(ReceiverService.outputUnderruns).append(" glitches");
-            if (settings.kodiMode != Protocol.KODI_OFF) sb.append("\n").append(describeKodi());
+            if (settings.kodiEnabled && settings.kodiMode != Protocol.KODI_OFF) sb.append("\n").append(describeKodi());
         }
         return sb.toString();
     }

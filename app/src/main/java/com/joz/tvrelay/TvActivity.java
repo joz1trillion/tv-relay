@@ -164,7 +164,8 @@ public class TvActivity extends Activity {
         SpannableStringBuilder k = new SpannableStringBuilder("● ");
         k.setSpan(new ForegroundColorSpan(found ? Color.rgb(0x34, 0xC7, 0x59) : Color.rgb(0xFF, 0x45, 0x3A)),
                 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        kodi.setText(k.append(found ? "Kodi found" : "Kodi not found"));
+        kodi.setText(k.append("Kodi found"));
+        kodi.setVisibility(found ? View.VISIBLE : View.GONE); // nothing at all without Kodi: it's optional
         hint.setText(on ? "Streaming keeps going in the background. Press Home or Back to return to what you were watching."
                 : "All settings live in the phone app. The TV switches format by itself.");
     }
@@ -258,11 +259,10 @@ public class TvActivity extends Activity {
         String ip = ipAddress();
         new AlertDialog.Builder(this)
                 .setTitle("Kodi lip sync (optional)")
-                .setMessage((LinkService.kodiFound
-                        ? "Kodi found at " + (ip != null ? ip : "this TV") + ":" + LinkService.KODI_PORT + "."
-                        : "Kodi not found.")
-                        + "\n\nOnly if you watch in Kodi: TV Relay can adjust Kodi's audio delay so the picture "
-                        + "lines up with the sound on your phone. Set it up in the phone app's Kodi sync tab.")
+                .setMessage("Kodi found at " + (ip != null ? ip : "this TV") + ":" + LinkService.KODI_PORT + ".\n\n"
+                        + "Only if you watch in Kodi: TV Relay can adjust Kodi's audio delay so the picture lines "
+                        + "up with the sound on your phone. To use it, turn on Kodi sync in the phone app under "
+                        + "Settings > Advanced settings.")
                 .setPositiveButton("OK", null)
                 .show();
     }

@@ -16,7 +16,7 @@ final class Settings {
     static final int OUTPUT_LOW_LATENCY = 0;
     static final int OUTPUT_NORMAL = 1;
     static final int OUTPUT_POWER_SAVING = 2;
-    static final String[] CATCHUP_LABELS = {"Gentle", "Normal", "Aggressive"};
+    static final String[] CATCHUP_LABELS = {"Gentle", "Fast", "Instant"};
     static final int CATCHUP_GENTLE = 0;
     static final int CATCHUP_NORMAL = 1;
     static final int CATCHUP_AGGRESSIVE = 2;
@@ -49,6 +49,8 @@ final class Settings {
     int kodiMode;
     int kodiAdjustMs;
     boolean kodiFlip;
+    boolean kodiEnabled;      // Kodi sync tab and controls; off unless asked for, since Kodi is optional
+    boolean showAdvanced;     // Settings shows the advanced section
     boolean kodiOnListen;  // also show the Kodi mode and adjustment on the Listen tab
     // phone side: Kodi's HTTP remote control login
     String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
@@ -90,6 +92,9 @@ final class Settings {
         s.kodiAdjustMs = p.getInt("kodiAdjustMs", 0);
         s.kodiFlip = p.getInt("kodiFlip", 0) == 1;
         s.kodiOnListen = p.getBoolean("kodiOnListen", false);
+        // Before v1.8 the Kodi tab was always there; keep it for anyone who'd turned lip sync on.
+        s.kodiEnabled = p.getBoolean("kodiEnabled", s.kodiMode != Protocol.KODI_OFF);
+        s.showAdvanced = p.getBoolean("showAdvanced", false);
         s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
@@ -123,6 +128,8 @@ final class Settings {
                 .putInt("kodiAdjustMs", kodiAdjustMs)
                 .putInt("kodiFlip", kodiFlip ? 1 : 0)
                 .putBoolean("kodiOnListen", kodiOnListen)
+                .putBoolean("kodiEnabled", kodiEnabled)
+                .putBoolean("showAdvanced", showAdvanced)
                 .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)

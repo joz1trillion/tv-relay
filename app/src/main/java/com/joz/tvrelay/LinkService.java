@@ -46,7 +46,10 @@ public class LinkService extends Service {
         } else {
             startForeground(3, Notifications.build(this, "Ready for your phone"));
         }
-        if (running) return START_NOT_STICKY;
+        // Sticky: if the TV's memory cleaner (TCL "Safety Guard" and the like) kills TV Relay,
+        // Android brings the link back on its own. Streaming can't come back this way: capture
+        // needs a fresh OK on the TV.
+        if (running) return START_STICKY;
         running = true;
         try {
             socket = new DatagramSocket(null);
@@ -62,7 +65,7 @@ public class LinkService extends Service {
         kodiThread = new Thread(this::kodiLoop, "relay-kodi-probe");
         linkThread.start();
         kodiThread.start();
-        return START_NOT_STICKY;
+        return START_STICKY;
     }
 
     private void linkLoop() {

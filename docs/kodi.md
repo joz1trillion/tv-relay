@@ -30,7 +30,7 @@ An alternative is [PlexKodiConnect](https://github.com/croneter/PlexKodiConnect)
 1. In Kodi: **Settings (gear) → Services → Control**.
 2. Turn on **Allow remote control via HTTP**.
 3. Leave **Port** at `8080` and **Username** at `kodi`. Set a **Password**. (If you don't see the username and password fields, change the settings level at the bottom left to Standard or higher.)
-4. On your phone, open TV Relay's **Kodi sync** tab. Open **Kodi login** and enter the same port, username and password, then tap **Test connection**. Leave **Kodi IP** blank when Kodi runs on the TV you stream from; fill it in only if Kodi is on another device.
+4. On your phone, turn on **Settings → Advanced settings → Kodi sync**, then open the **Kodi sync** tab that appears. Open **Kodi login** and enter the same port, username and password, then tap **Test connection**. Leave **Kodi IP** blank when Kodi runs on the TV you stream from; fill it in only if Kodi is on another device.
 
 The card at the top of the tab turns green and says **Kodi connected**, or tells you what's wrong: the password, or Kodi couldn't be reached. The phone needs to know where the TV is, so tap **Listen** once first if the test says so.
 
@@ -52,7 +52,7 @@ If moving the slider right makes the sound *later* instead of earlier, turn on *
 Every time Kodi's audio delay changes mid-video, Kodi catches the picture up by skipping frames for a moment. **Mode** decides when TV Relay changes it:
 
 - **Automatic** follows the measured delay whenever it moves by about 50 ms, even mid-scene.
-- **Automatic, at pause** (recommended) sets it when a video starts and whenever you pause, never mid-scene; in between, the phone's buffer absorbs small Wi-Fi changes. **Sync now** (on the Kodi sync tab, and in the Kodi row on the Listen tab) applies it straight away. The Kodi card shows a waiting change, e.g. *−100 ms at the next pause or Sync now*.
+- **Automatic, at pause** (recommended) sets it when a video starts and whenever you pause, never mid-scene; in between, the phone's buffer absorbs small Wi-Fi changes. The Kodi card shows a waiting change, e.g. *−100 ms at the next pause*.
 - **Manual** uses only your adjustment.
 
 Your own changes always apply straight away. The slider applies when you lift your finger, not while dragging.
