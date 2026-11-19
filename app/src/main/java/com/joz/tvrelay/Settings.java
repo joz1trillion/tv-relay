@@ -48,6 +48,7 @@ final class Settings {
     boolean kodiFlip;
     boolean kodiEnabled;      // Kodi sync tab and controls; off unless asked for, since Kodi is optional
     boolean showAdvanced;     // Settings shows the advanced section
+    boolean streamEnabled;    // phone screen: the Stream button (send this device's own audio)
     boolean kodiOnListen;  // also show the Kodi mode and adjustment on the Listen tab
     // phone side: Kodi's HTTP remote control login
     String kodiHost = "";  // blank = Kodi runs on the TV that's streaming
@@ -91,6 +92,8 @@ final class Settings {
         // Before v1.8 the Kodi tab was always there; keep it for anyone who'd turned lip sync on.
         s.kodiEnabled = p.getBoolean("kodiEnabled", s.kodiMode != Protocol.KODI_OFF);
         s.showAdvanced = p.getBoolean("showAdvanced", false);
+        // Before v1.12 Stream showed in Client mode or with Advanced settings on.
+        s.streamEnabled = p.getBoolean("streamEnabled", s.screenMode == SCREEN_CLIENT || s.showAdvanced);
         s.kodiHost = p.getString("kodiHost", "");
         s.kodiPort = p.getInt("kodiPort", 8080);
         s.kodiUser = p.getString("kodiUser", "kodi");
@@ -125,6 +128,7 @@ final class Settings {
                 .putBoolean("kodiOnListen", kodiOnListen)
                 .putBoolean("kodiEnabled", kodiEnabled)
                 .putBoolean("showAdvanced", showAdvanced)
+                .putBoolean("streamEnabled", streamEnabled)
                 .putString("kodiHost", kodiHost)
                 .putInt("kodiPort", kodiPort)
                 .putString("kodiUser", kodiUser)

@@ -35,6 +35,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.Switch;
@@ -141,6 +142,7 @@ public class MainActivity extends Activity {
         tvPicker.setBackground(box);
         tvPicker.setPadding(dp(14), dp(10), dp(14), dp(10));
         tvPicker.setOnClickListener(v -> pickTv());
+        setUpPullToRefresh((ScrollView) pages[0]);
         findViewById(R.id.stream).setOnClickListener(v -> streamFromHere());
         kodiQuick = findViewById(R.id.kodiQuick);
         buildKodiCompact(kodiQuick);
@@ -149,13 +151,9 @@ public class MainActivity extends Activity {
         applyStreamButton();
     }
 
-    /**
-     * Stream (send this device's own audio) shows on a device set to Client mode, where it's the
-     * point (a TV box that should stream, say), and otherwise with Advanced settings on.
-     */
+    /** Stream (send this device's own audio) is switched on under Device mode: Enable streaming. */
     private void applyStreamButton() {
-        boolean client = Settings.load(this).screenMode == Settings.SCREEN_CLIENT;
-        findViewById(R.id.stream).setVisibility(client || settings.showAdvanced ? View.VISIBLE : View.GONE);
+        findViewById(R.id.stream).setVisibility(settings.streamEnabled ? View.VISIBLE : View.GONE);
     }
 
     @Override
@@ -237,7 +235,6 @@ public class MainActivity extends Activity {
         Switch advSwitch = toggle(list, "Advanced settings", R.string.info_show_advanced, settings.showAdvanced, v -> {
             settings.showAdvanced = v;
             adv.setVisibility(v ? View.VISIBLE : View.GONE);
-            applyStreamButton();
         }, false);
         styleAsHeader((LinearLayout) advSwitch.getParent());
         list.addView(adv);
@@ -274,7 +271,11 @@ public class MainActivity extends Activity {
 
         // For devices Android guesses wrong: a TV box that shows the phone screen, or a tablet to stream from.
         header(list, "Device mode");
-        list.addView(ModeSwitch.build(this, 15));
+        list.addView(ModeSwitch.build(this, 15)); // this screen is always Client mode
+        toggle(list, "Enable streaming", R.string.info_enable_streaming, settings.streamEnabled, v -> {
+            settings.streamEnabled = v;
+            applyStreamButton();
+        }, false);
 
         header(list, "Experimental");
         toggle(list, "Send every packet twice", R.string.info_send_twice, settings.sendTwice,
@@ -985,6 +986,58 @@ public class MainActivity extends Activity {
     }
 
     // ---- status text ----
+
+    /**
+     * Pull the Stream tab down from the top to look for TVs again. Hand-rolled rather than
+     * SwipeRefreshLayout, to keep the app free of extra libraries.
+     */
+    private void setUpPullToRefresh(ScrollView scroll) {
+        LinearLayout content = (LinearLayout) scroll.getChildAt(0);
+        TextView hint = new TextView(this);
+        hint.setGravity(Gravity.CENTER);
+        hint.setTextSize(14);
+        hint.setAlpha(0.7f);
+        hint.setVisibility(View.GONE);
+        content.addView(hint, 0);
+        int trigger = dp(80);
+        float[] downY = {-1};
+        scroll.setOnTouchListener((v, e) -> {
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    downY[0] = scroll.getScrollY() == 0 ? e.getRawY() : -1;
+                    break;
+                case android.view.MotionEvent.ACTION_MOVE:
+                    if (downY[0] < 0) {
+                        if (scroll.getScrollY() == 0) downY[0] = e.getRawY(); // reached the top mid-drag
+                        break;
+                    }
+                    float dy = e.getRawY() - downY[0];
+                    if (dy <= 0) {
+                        hint.setVisibility(View.GONE);
+                        break;
+                    }
+                    hint.setVisibility(View.VISIBLE);
+                    hint.setText(dy > trigger ? "↻ Release to look for TVs" : "↓ Pull to look for TVs");
+                    hint.setPadding(0, (int) Math.min(dy / 2, trigger), 0, dp(8));
+                    break;
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    boolean go = downY[0] >= 0 && e.getRawY() - downY[0] > trigger
+                            && e.getActionMasked() == android.view.MotionEvent.ACTION_UP;
+                    downY[0] = -1;
+                    if (go) {
+                        TvLink.refresh();
+                        hint.setText("Looking for TVs…");
+                        hint.setPadding(0, dp(8), 0, dp(8));
+                        handler.postDelayed(() -> hint.setVisibility(View.GONE), 1500);
+                    } else {
+                        hint.setVisibility(View.GONE);
+                    }
+                    break;
+            }
+            return false; // the ScrollView still scrolls normally
+        });
+    }
 
     /** With more than one TV on the network, choose which one to listen to. */
     private void pickTv() {

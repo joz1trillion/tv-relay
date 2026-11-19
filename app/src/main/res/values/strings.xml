@@ -17,6 +17,7 @@
     <string name="info_kodi_adjust">Move right if the sound is late, left if it\'s early.\n\nKodi only takes 25 ms steps; the phone covers the rest, so you get 5 ms precision.</string>
     <string name="info_show_advanced">Shows the rest of the settings: Kodi sync, keep screen on, mini window, keeping the TV streaming, and the experimental options. Most people never need them.\n\nHiding them doesn\'t switch anything off.</string>
     <string name="info_kodi_enabled">Only if you watch in Kodi on the TV: adds the Kodi sync tab, which adjusts Kodi\'s audio delay so the picture lines up with the sound on this phone.\n\nOff: TV Relay leaves Kodi alone.</string>
+    <string name="info_enable_streaming">Adds a Stream button next to Listen and Stop, so this device can send its own audio to other devices, the way the TV does. Handy for a TV box that the app took for a phone.</string>
     <string name="info_keep_tv">When you tap Stop, the TV keeps capturing so the next Listen starts straight away, without the TV\'s recording prompt.\n\nOff: Stop asks whether to stop the TV too.</string>
     <string name="info_kodi_on_listen">Puts Mode and Adjustment on the Listen tab too, above the graph, so you can fine-tune while watching.</string>
     <string name="info_kodi_flip">Turn on if moving the slider right makes the sound later instead of earlier.</string>

@@ -51,6 +51,7 @@ final class TvLink {
     private static volatile String preferred;  // a TV picked by hand (Connect directly), or null
     private static volatile boolean running;
     private static volatile byte command = Protocol.QUERY_STATUS; // sent with the next query
+    private static volatile boolean refreshNow;
     private static Thread thread;
 
     static boolean found() {
@@ -73,6 +74,15 @@ final class TvLink {
         if (p == null ? preferred == null : p.equals(preferred)) return;
         preferred = p;
         lastReplyMs = 0; // until the chosen TV answers
+    }
+
+    /** Pull to refresh: forget the TVs seen so far and ask again straight away. */
+    static void refresh() {
+        synchronized (tvs) {
+            tvs.clear();
+        }
+        lastReplyMs = 0;
+        refreshNow = true;
     }
 
     /** Asks the TV to open its capture prompt; works while TV Relay is on the TV's screen, or in automatic start mode. */
@@ -119,7 +129,8 @@ final class TvLink {
                     qb.putLong(4, System.nanoTime());
                     q[12] = cmd;
                     send(socket, q, InetAddress.getByName(address));
-                } else if (now >= nextQuery) {
+                } else if (now >= nextQuery || refreshNow) {
+                    refreshNow = false;
                     nextQuery = now + 1000;
                     qb.putLong(4, System.nanoTime());
                     q[12] = Protocol.QUERY_STATUS;
