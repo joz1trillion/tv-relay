@@ -80,9 +80,7 @@ public class TvActivity extends Activity {
         });
         ip = findViewById(R.id.ip);
         kodi = findViewById(R.id.kodi);
-        kodi.setOnClickListener(v -> showKodi());
         startMode = findViewById(R.id.startMode);
-        startMode.setOnClickListener(v -> showStartMode());
         toggle.setOnFocusChangeListener((v, focused) ->
                 v.animate().scaleX(focused ? 1.05f : 1f).scaleY(focused ? 1.05f : 1f).setDuration(120).start());
         toggle.requestFocus();
@@ -154,11 +152,6 @@ public class TvActivity extends Activity {
             int n = SenderService.clientCount;
             state.setText("Streaming to " + n + (n == 1 ? " phone" : " phones"));
             detail.setText(SenderService.format);
-        }
-        if (on && !s.startsWith("Error")) { // red "live" dot while capturing
-            SpannableStringBuilder live = new SpannableStringBuilder("● ");
-            live.setSpan(new ForegroundColorSpan(Color.rgb(0xFF, 0x45, 0x3A)), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            state.setText(live.append(state.getText()));
         }
         String address = ipAddress();
         ip.setText(address != null ? "IP address " + address : "No network");
@@ -246,6 +239,11 @@ public class TvActivity extends Activity {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.topMargin = pad / 2;
         box.addView(start, lp);
+        Button kodiInfo = new Button(this);
+        kodiInfo.setText("Kodi: " + (LinkService.kodiFound ? "found" : "not found"));
+        kodiInfo.setAllCaps(false);
+        kodiInfo.setOnClickListener(v -> showKodi());
+        box.addView(kodiInfo, new LinearLayout.LayoutParams(lp));
         new AlertDialog.Builder(this)
                 .setTitle("Settings")
                 .setView(box)
@@ -283,7 +281,9 @@ public class TvActivity extends Activity {
         String ip = ipAddress();
         new AlertDialog.Builder(this)
                 .setTitle("Kodi lip sync (optional)")
-                .setMessage("Kodi found at " + (ip != null ? ip : "this TV") + ":" + LinkService.KODI_PORT + ".\n\n"
+                .setMessage((LinkService.kodiFound
+                        ? "Kodi found at " + (ip != null ? ip : "this TV") + ":" + LinkService.KODI_PORT + "."
+                        : "Kodi not found on this TV (port " + LinkService.KODI_PORT + ").") + "\n\n"
                         + "Only if you watch in Kodi: TV Relay can adjust Kodi's audio delay so the picture lines "
                         + "up with the sound on your phone. To use it, turn on Kodi sync in the phone app under "
                         + "Settings > Advanced settings.")

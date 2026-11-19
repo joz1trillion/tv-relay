@@ -149,9 +149,13 @@ public class MainActivity extends Activity {
         applyStreamButton();
     }
 
-    /** Stream (send this device's own audio) is an advanced feature: shown with Advanced settings on. */
+    /**
+     * Stream (send this device's own audio) shows on a device set to Client mode, where it's the
+     * point (a TV box that should stream, say), and otherwise with Advanced settings on.
+     */
     private void applyStreamButton() {
-        findViewById(R.id.stream).setVisibility(settings.showAdvanced ? View.VISIBLE : View.GONE);
+        boolean client = Settings.load(this).screenMode == Settings.SCREEN_CLIENT;
+        findViewById(R.id.stream).setVisibility(client || settings.showAdvanced ? View.VISIBLE : View.GONE);
     }
 
     @Override

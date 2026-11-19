@@ -29,7 +29,7 @@ All settings live in the phone app; the TV follows whatever the phone asks for. 
 
 **More than one TV?** Tap the **TV** selector on the Stream tab to pick which TV to listen to.
 
-**Device mode:** if the app guesses wrong whether a device is a TV, pick **TV mode** or **Client mode** with the gear on the TV screen, or under Settings → Advanced settings → Device mode on the phone. With Advanced settings on, the phone also gets a **Stream** button, so any device can send its own audio.
+**Device mode:** if the app guesses wrong whether a device is a TV, pick **TV mode** or **Client mode** with the gear on the TV screen, or under Settings → Advanced settings → Device mode on the phone. In Client mode (or with Advanced settings on) the phone screen also has a **Stream** button, so any device can send its own audio.
 
 ### Kodi lip sync (optional)
 

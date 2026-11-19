@@ -53,13 +53,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:background="@drawable/tv_chip"
-                android:focusable="true"
-                android:paddingLeft="12dp"
+                                                android:paddingLeft="12dp"
                 android:paddingTop="6dp"
                 android:paddingRight="12dp"
                 android:paddingBottom="6dp"
-                android:textColor="@color/tv_chip_text"
+                android:textColor="#8E8E96"
                 android:textSize="16sp" />
 
         </LinearLayout>
@@ -136,19 +134,17 @@
             android:textColor="#8E8E96"
             android:textSize="16sp" />
 
-        <!-- Whether Kodi's web server answers on this TV. Focusable: OK explains Kodi lip sync. -->
+        <!-- Whether Kodi's web server answers on this TV; the gear's Settings explains Kodi lip sync. -->
         <TextView
             android:id="@+id/kodi"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginLeft="8dp"
-            android:background="@drawable/tv_chip"
-            android:focusable="true"
-            android:paddingLeft="12dp"
+                                    android:paddingLeft="12dp"
             android:paddingTop="6dp"
             android:paddingRight="12dp"
             android:paddingBottom="6dp"
-            android:textColor="@color/tv_chip_text"
+            android:textColor="#8E8E96"
             android:textSize="16sp" />
     </LinearLayout>
 
